@@ -14,7 +14,7 @@ import {
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { makeTempRoot, scaffoldProject } from './helpers.js';
+import { makeTempRoot, scaffoldProject , IS_ROOT } from './helpers.js';
 import { GUARD_SRC, REPO_ROOT, buildProject, callIsProtected, cleanEnv, git, loadGuardRegion } from './s09-guard-vcs-fixtures.js';
 import { chain, postToolUse } from './s09-guard-post-check-helpers.js';
 import { defaultScopeIo, runScopeCommand, type ScopeExecResult, type ScopeIo } from '../src/commands/scope.js';
@@ -470,7 +470,7 @@ describe('S40 托管区块渲染 — 单元', () => {
     }
   });
 
-  it('UT-S40-17: 区块写入失败回滚配置（权限错误、目标为目录），不留临时文件', () => {
+  it.skipIf(IS_ROOT)('UT-S40-17: 区块写入失败回滚配置（权限错误、目标为目录），不留临时文件', () => {
     // ① 写入口注入失败：.gitignore 的 rename 抛 EACCES
     const a = project({ gitignore: 'x\n' });
     const cfgBefore = readFileSync(join(a, 'logos/logos.config.json'));

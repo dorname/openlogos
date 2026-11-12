@@ -12,7 +12,7 @@ import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { stringify as stringifyYaml } from 'yaml';
-import { makeTempRoot, scaffoldProject, captureConsole, mockCwd, mockProcessExit, withCompleteClarification, mergeAdmissibleProposal, mergeAdmissibleTasks, registerCoreModule } from './helpers.js';
+import { makeTempRoot, scaffoldProject, captureConsole, mockCwd, mockProcessExit, withCompleteClarification, mergeAdmissibleProposal, mergeAdmissibleTasks, registerCoreModule , IS_ROOT } from './helpers.js';
 import {
   parseTestCaseIds, extractStructuredTestIds, classifyTestEvidenceStage, evaluateTestIdEvidence,
   hasRealTestIdsForProposal, parseReuseDeclaration, detectProposalStep,
@@ -888,7 +888,7 @@ describe('S35 — 同源锚与契约', () => {
     expect(lintViolations(both.root).violations.every(v => v.code !== 'code_change_requires_real_test_ids')).toBe(true);
   });
 
-  it('UT-S35-20: 同源锚 L4/L6——validateMarkdownDelta / 分类器在 lint 与 merge 两侧结论一致', { timeout: 120_000 }, () => {
+  it.skipIf(IS_ROOT)('UT-S35-20: 同源锚 L4/L6——validateMarkdownDelta / 分类器在 lint 与 merge 两侧结论一致', { timeout: 120_000 }, () => {
     // 模板骨架：lint 报 delta_template_skeleton，merge 同判据拒绝
     const { root, dir } = setup({ proposal: proposalMd({ codeRequired: false }) });
     mkdirSync(join(dir, 'deltas', 'prd'), { recursive: true });
@@ -1217,7 +1217,7 @@ describe('S35 — ST 场景测试', () => {
     }
   });
 
-  it('ST-S35-03a: 操作错误即终止（真实 CLI）——各错误码单份 stderr 输出、stdout 零输出', { timeout: 120_000 }, () => {
+  it.skipIf(IS_ROOT)('ST-S35-03a: 操作错误即终止（真实 CLI）——各错误码单份 stderr 输出、stdout 零输出', { timeout: 120_000 }, () => {
     const errOf = (root: string, args: string[]) => {
       const r = spawnCli(root, [...args, '--format', 'json']);
       expect(r.status).toBe(1);

@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { stringify as stringifyYaml } from 'yaml';
-import { makeTempRoot, scaffoldProject, registerCoreModule, withCompleteClarification } from './helpers.js';
+import { makeTempRoot, scaffoldProject, registerCoreModule, withCompleteClarification , IS_ROOT } from './helpers.js';
 
 const injection = vi.hoisted(() => ({ active: false }));
 
@@ -90,7 +90,7 @@ function snapshotTree(root: string): Map<string, string> {
 }
 
 describe('S35 L5 部署方案覆盖——判定单点', () => {
-  it('UT-S35-224: 判定单点、只读与操作错误', () => {
+  it.skipIf(IS_ROOT)('UT-S35-224: 判定单点、只读与操作错误', () => {
     // ① 注入式反证：真实判定下两个消费方都报；注入恒覆盖后两者同时转为无问题。
     const missing = project();
     const unresolved = project('OpenLogos 9.9.2 发布方案');

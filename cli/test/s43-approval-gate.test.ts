@@ -17,7 +17,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { stringify as stringifyYaml } from 'yaml';
-import { captureConsole, makeTempRoot, mockCwd, mockProcessExit, scaffoldProject, takeExitCode } from './helpers.js';
+import { captureConsole, makeTempRoot, mockCwd, mockProcessExit, scaffoldProject, takeExitCode , IS_ROOT } from './helpers.js';
 import { DEPLOY_LEDGER_REL, DEPLOY_PENDING_REL, ENV_REGISTRY_REL } from '../src/lib/environments.js';
 import { deploy, type DeployCliOptions, type DeployHooks } from '../src/commands/deploy.js';
 import { approve, type ApproveCliOptions, type ApproveHooks } from '../src/commands/approve.js';
@@ -267,7 +267,7 @@ describe('S43 openlogos approve 与审批门 — 单元测试（environment-prom
     expect(json(['approve', '--env', '生产', '--ref', 'v1']).data).toMatchObject({ environment: 'prod', created: false, approval_id: first.data.approval_id });
   }, 120_000);
 
-  it('UT-S43-06: 失败与结果未知不使用审批，成功使用不可撤销', () => {
+  it.skipIf(IS_ROOT)('UT-S43-06: 失败与结果未知不使用审批，成功使用不可撤销', () => {
     // ① script 以 3 退出：DEPLOY_FAILED，A 仍未使用；脚本改为成功后再次部署使用 A
     setup();
     const A = json(['approve', '--env', 'prod', '--ref', 'v1']).data.approval_id;

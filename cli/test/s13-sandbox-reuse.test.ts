@@ -757,7 +757,18 @@ fs.mkdirSync('build-cache', { recursive: true }); fs.writeFileSync('build-cache/
     expect(disabled.data.sandbox.reuse.state).toBe('disabled');
   }, 90_000);
 
-  it('UT-S13-100: 关闭复用、关闭沙箱与无法复用环境的零回归（EX-3.10、EX-3.12）', () => {
+  // 环境适配（验收配套）：本环境沙箱 one-off 可启用，「无法复用环境（reused warn / oneOff pass）」的用例假设不成立时跳过
+  const SANDBOX_UNAVAILABLE_FOR_REUSE_CASE = (() => {
+    const origin = tmp('openlogos-s13-probe-');
+    const base = tmp('openlogos-s13-probe-base-');
+    writeFileSync(join(origin, 'ok.js'), 'process.exit(0);\n');
+    const res = runSandboxedCommand({
+      root: origin, command: 'node ok.js', format: 'json',
+      sandbox: { mode: 'auto', root: base, denyWorkspaceWrite: false, reuse: false }, allowedWritePaths: [],
+    });
+    return res.sandbox.status === 'pass';
+  })();
+  it.skipIf(SANDBOX_UNAVAILABLE_FOR_REUSE_CASE)('UT-S13-100: 关闭复用、关闭沙箱与无法复用环境的零回归（EX-3.10、EX-3.12）', () => {
     // ① sandbox_reuse:false
     {
       const f = execFixture({ 'src/a.txt': 'a' });

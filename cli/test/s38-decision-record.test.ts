@@ -15,7 +15,7 @@ import { allocateDecisionRecordIds, parseDecisionFilenameDxx, applyDecisionRecor
 import { DELTA_TO_RESOURCE } from '../src/lib/delta-classify.js';
 import { readProjectYaml } from '../src/lib/project-yaml.js';
 import { scanCandidateFiles, inferResourceDesc } from '../src/lib/sync-resource-index.js';
-import { makeTempRoot, scaffoldProject, withCompleteClarification } from './helpers.js';
+import { makeTempRoot, scaffoldProject, withCompleteClarification , IS_ROOT } from './helpers.js';
 
 const CLI_ROOT = resolve(dirname(new URL(import.meta.url).pathname), '..');
 function spawnCli(cwd: string, args: string[]): { status: number | null; stdout: string; stderr: string } {
@@ -580,7 +580,7 @@ describe('S38 决策记录 — CLI 端到端（ST）', () => {
     expect(existsSync(join(dir, 'SPEC_MERGED'))).toBe(true);
   });
 
-  it('ST-S38-11: apply 事务中途失败回滚零半状态、复权后重试完整成功（code-r3 F2 失败回滚 + 重试幂等）', () => {
+  it.skipIf(IS_ROOT)('ST-S38-11: apply 事务中途失败回滚零半状态、复权后重试完整成功（code-r3 F2 失败回滚 + 重试幂等）', () => {
     const { root, dir } = setupProj({
       decisionSection: true, decisionsDeltaTask: true,
       decisionsDelta: { rel: 'deltas/decisions/core-D01-x.md', content: '## ADDED — core-D01-x\n\n# D01：某决策\n\n- 状态：accepted\n\n## 决策\n采用 X。\n' },

@@ -274,3 +274,6 @@ export function registerCoreModule(root: string, lifecycle = 'initial'): void {
   if (/^modules:/m.test(yaml)) return;
   writeFileSync(path, `modules:\n  - id: core\n    name: 核心功能\n    lifecycle: ${lifecycle}\n\n${yaml}`);
 }
+
+/** 环境适配（multi-user-collaboration 验收配套）：root 下 chmod 权限位无效，权限类用例应跳过而非假红。 */
+export const IS_ROOT = typeof process.getuid === 'function' && process.getuid() === 0;

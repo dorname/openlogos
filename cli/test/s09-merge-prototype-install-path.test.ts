@@ -27,7 +27,7 @@ import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import {
   makeTempRoot, scaffoldProject, captureConsole, mockCwd, mockProcessExit,
-  mergeAdmissibleProposal, registerCoreModule,
+  mergeAdmissibleProposal, registerCoreModule, IS_ROOT,
 } from './helpers.js';
 import { SPEC_MERGED_MARKER } from '../src/lib/proposal-markers.js';
 import type { CommitResult } from '../src/lib/ui-provenance.js';
@@ -312,7 +312,7 @@ describe('S09 merge 原型落盘安装态路径（切片 1）', () => {
     for (const phrase of ZERO_RESIDUE_PHRASES) expect(p2).not.toContain(phrase);
   });
 
-  it('UT-S09-358: 分档准确 —— P1 已完整回滚 vs P2 回滚不完整，禁止零残留谎报', () => {
+  it.skipIf(IS_ROOT)('UT-S09-358: 分档准确 —— P1 已完整回滚 vs P2 回滚不完整，禁止零残留谎报', () => {
     // 纯函数层：档位只由结构化返回值派生
     expect(gradePrototypeCommit({ ok: true, advisory: false, cls: 'full', committed: ['a.html'] }).tier).toBe('committed');
     expect(gradePrototypeCommit({ ok: true, advisory: false, cls: 'full', committed: [] }).tier).toBe('none');
@@ -393,7 +393,7 @@ describe('S09 merge 原型落盘安装态路径（切片 1）', () => {
     expect(gradePrototypeCommit({ ok: false, advisory: false, cls: 'full', committed: [], reason: sameReason, rolledBack: false }).tier).toBe('P2');
   });
 
-  it('UT-S09-359: 顺序与材料生命周期 —— 合成失败不得已提交原型；规格提交失败须能回滚原型', () => {
+  it.skipIf(IS_ROOT)('UT-S09-359: 顺序与材料生命周期 —— 合成失败不得已提交原型；规格提交失败须能回滚原型', () => {
     // ① 合成失败（MODIFIED 章节锚在主文档中不存在）⇒ 阶段一失败 ⇒ afterPrepare 从未执行。
     //    此形态在 `merge()` 里会先被同源准入（change-lint delta_section_anchor_unresolvable）拦下，
     //    故直接把**真实钩子**挂到 runDirectMerge 上绕过前移预检，锁 mergeDirect 自身的顺序契约

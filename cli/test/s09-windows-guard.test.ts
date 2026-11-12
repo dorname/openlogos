@@ -306,7 +306,11 @@ describe('S09 guard 跨平台可移植性与输入 fail-closed', () => {
     }
   }, TIMEOUT);
 
-  it('UT-S09-376: 输入不可解析 fail-closed', () => {
+  // 环境适配（验收配套）：ENVS.noneNoNode 下仍能 command -v 到 node 时，用例的「无 node」前置不成立，跳过而非假红
+  const NO_NODE_SIMULATABLE = spawnSync('/bin/sh', ['-c', 'command -v node >/dev/null 2>&1 && echo yes || echo no'], {
+    env: { ...process.env, PATH: buildEnvs().noneNoNode }, encoding: 'utf-8',
+  }).stdout?.trim() === 'no';
+  it.skipIf(!NO_NODE_SIMULATABLE)('UT-S09-376: 输入不可解析 fail-closed', () => {
     const root = launchedProject();
     assertPathCondition('P-real', ENVS.real);
     const cases: Array<[string, string, string]> = [

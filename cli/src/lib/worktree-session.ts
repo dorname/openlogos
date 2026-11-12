@@ -9,9 +9,10 @@
  *   5. worktree 内自调用 `openlogos change <slug>` 创建提案（guard 写入 worktree，主工作区不受影响）。
  * 自调用经 process.execPath + process.argv[1]（真实 CLI 入口），保持与手工逐步执行完全同语义。
  */
-import { existsSync, mkdirSync, copyFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { removeTree } from './fs-remove.js';
 
 export interface WorktreeSessionResult {
   ok: boolean;
@@ -35,7 +36,7 @@ export function createWorktreeSession(root: string, slug: string): WorktreeSessi
 
   const cleanup = () => {
     git(['worktree', 'remove', '--force', relWorktree]);
-    if (existsSync(worktreePath)) rmSync(worktreePath, { recursive: true, force: true });
+    if (existsSync(worktreePath)) removeTree(worktreePath);
     git(['branch', '-D', branch]);
   };
   const fail = (message: string): WorktreeSessionResult => {
