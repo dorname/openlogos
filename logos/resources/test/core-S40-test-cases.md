@@ -97,3 +97,22 @@
 - [x] C14 宿主原生审批（ask / 阻断 / 批准 / 拒绝 / 每次独立）：UT-S40-21、UT-S40-22、UT-S40-28、ST-S40-08～ST-S40-10
 - [x] C14 复合命令、间接调用、伪造文件与 hook 输入：UT-S40-23、UT-S40-24、ST-S40-11、ST-S40-14
 - [x] C14 `--auto`、有活跃提案、Cursor：ST-S40-12、ST-S40-13
+
+## 五、协作固定条目扩展测试用例（multi-user-collaboration）
+
+> 覆盖 S40 协作固定条目扩展（`logos/.openlogos-guard`、`.worktrees/` 永不入库；幂等渲染；已跟踪 untrack 指引）。沿用本文件既有快照与断言口径。
+
+### 单元测试（UT）
+
+| ID | 描述 | 前置条件 | 操作 | 预期结果 |
+|----|------|----------|------|----------|
+| UT-S40-30 | 固定条目集渲染含 guard 与 .worktrees/ | 无托管区块 | 渲染托管区块 | 固定条目恰为三条：`logos/.openlogos-runtime/`、`logos/.openlogos-guard`、`.worktrees/`；区块外逐字节不变 |
+| UT-S40-31 | 幂等重渲染字节不变 | 区块已含三条固定条目 | 再次渲染两次 | 不写盘（.gitignore 字节与 mtime 不变） |
+| UT-S40-32 | guard 已被跟踪输出 untrack 指引 | git 索引含 `logos/.openlogos-guard` | 执行 sync 渲染路径 | 输出含 `git rm --cached logos/.openlogos-guard` 指引；CLI 不自动改写索引 |
+| UT-S40-33 | 固定条目不被 ignore remove 影响 | 区块已渲染 | 执行 `openlogos ignore remove logos/.openlogos-guard`（越权尝试） | 以固定条目保护语义拒绝（EX-40.4 既有语义扩展到新条目）；区块不变 |
+
+### 场景测试（ST）
+
+| ID | 描述 | 覆盖 Steps | 前置条件 | 操作序列 | 预期结果 |
+|----|------|-----------|----------|----------|----------|
+| ST-S40-16 | sync 后固定条目在场且已跟踪 guard 有指引（端到端） | S40 协作扩展 Step 1→4 | 隔离 launched git 项目；`logos/.openlogos-guard` 已被 git add 跟踪 | ① `openlogos sync`；② 读 `.gitignore`；③ `git ls-files` | ② 区块含三条固定条目；③ guard 仍被跟踪但 ① 输出含 untrack 指引；区块外内容不变 |

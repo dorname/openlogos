@@ -1732,3 +1732,85 @@ sequenceDiagram
 - 功能规格：§2.69.1、§2.69.2、§2.69.4、§2.85.3。
 - 场景关联：本文档「S09 merge 直接合并时序」（EX-9.22 改写）、「S09 merge 内部错误的稳定失败语义」（档位沿用）；S11「已合并提案的增量修正只读投影」。
 - 测试：UT-S09-429～UT-S09-447、ST-S09-196～ST-S09-201。
+
+## S09 并行协作扩展：guardConflict worktree 指引与 merge preflight 三查
+
+> 来源变更：multi-user-collaboration（S44/S45 协作模型在 S09 生命周期上的两个触点）。功能规格 §2.96.2 / §2.96.3。
+
+### 场景目标
+
+同目录第二提案被拒时给出并行出路（worktree 指引）；`openlogos merge` 在既有准入判定之前增加协作三查（fetch 陈旧 view、编号落盘定稿、撞号防御），使跨 clone / worktree 汇合的编号唯一性成为结构保证而非纪律约定。
+
+### 参与者
+
+- 开发者 / AI 会话（发起 change / merge）
+- openlogos CLI（guardConflict 拒绝路径、merge preflight）
+- git 远端（origin，fetch 比对来源；离线时缺席）
+
+### 前置条件
+
+- 已是 launched 项目、guard 单锁语义不变；
+- merge preflight 三查挂在既有「S09 merge 准入判定与 change-lint 同源」的准入序列之前，fail 均以稳定错误退出、零写入。
+
+### 成功后后置条件
+
+- guardConflict 文案含 `--worktree` 指引；行为语义不变（仍拒绝）；
+- merge 落盘的 SXX/FXX 编号为定稿号（拟用号可能被改写），deltas 内注册文法引用同步改写；
+- fetch 发现目标文档在 origin 更新时 merge 被阻塞（离线仅警告）。
+
+### 时序图
+
+```mermaid
+sequenceDiagram
+    participant U as 开发者/AI
+    participant C as openlogos CLI
+    participant G as git(origin)
+
+    U->>C: openlogos change <slug2>（同目录已有活跃提案）
+    C-->>C: guard 单锁判定（语义不变）
+    C-->>U: guardConflict + 指引：openlogos change <slug2> --worktree（S44）
+
+    U->>C: openlogos merge <slug>（汇合前）
+    C->>G: git fetch（超时/离线 → 降级警告）
+    alt delta 触达目标文档在 origin 有更新
+        C-->>U: 阻塞：先 pull（稳定错误，零写入）
+    end
+    C-->>C: 编号落盘定稿：max(configured??0, max已落盘+1)
+    C-->>C: 改写 deltas 拟用号与注册文法引用
+    C-->>C: 撞号防御检测（定稿后冲突 → fail-closed）
+    C->>C: 既有准入判定（change-lint 同源、F2、锚解析）
+    alt 锚解析失败
+        C-->>U: delta_section_anchor_unresolvable +「origin 有新版本、§X 被改动」上下文
+    end
+    C-->>U: 落盘（SPEC_MERGED 既有语义不变）
+```
+
+### 步骤说明
+
+1. **开发者/AI** 在同目录执行第二 `change`：CLI 以既有单锁语义拒绝，提示文案新增 worktree 出路（行为零漂移，只改指引文本）。
+2. **CLI** 在 merge 准入序列最前执行 fetch 检查：比对 delta 触达目标文档在 origin 的 blob 与本地——更新即阻塞提示先 pull；fetch 失败（离线）降级为警告继续。
+3. **CLI** 执行编号落盘定稿：按派生公式计算 SXX/FXX 定稿号，若与拟用号不同则改写本提案 deltas 内全部注册文法引用（文件名与正文）。
+4. **CLI** 执行撞号防御检测：定稿号与已落盘集合冲突（理论不可能的防御路径）即 fail-closed。
+5. **CLI** 进入既有准入判定与落盘流程（本提案不改动）；锚解析失败时报错附 origin 新版本上下文，指引基于新 view 重写 delta。
+
+### 异常与边界
+
+#### EX-9.60：fetch 检查离线降级
+- **触发条件**：无网络 / 远端不可达 / 非 git 仓库
+- **期望响应**：警告（不阻塞本地 merge）；后续收敛（sync）仍可本地执行
+- **副作用**：无
+
+#### EX-9.61：定稿号 ≠ 拟用号
+- **触发条件**：已落盘最大号增长（他人汇入）使拟用号被占
+- **期望响应**：按定稿号落盘并在输出中报告「S44 → S45（已定稿）」改写清单；拟用号弃用
+- **副作用**：deltas 内引用同步改写（注册文法内）
+
+#### EX-9.62：guardConflict 文案回归
+- **触发条件**：既有测试断言旧文案精确匹配
+- **期望响应**：同步更新断言至新文案；拒绝行为与错误码不变
+- **副作用**：无
+
+### 追溯
+- 需求：S44-AC-01、S45-AC-01、S45-AC-05、S45-AC-06
+- 测试：UT-S09-467～、ST-S09-206～
+- 决策：D17

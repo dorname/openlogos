@@ -3053,3 +3053,56 @@ flowchart TD
 - 未配置两个字段的项目（含没有登记表、有登记表但无门、已启用部署执行但无门）所有命令的输出、写入与行为逐字不变；EnvView 新字段只在配置了任一门的环境上输出。
 - 账本只新增 `approval` 记录类型与 deploy 记录的三个可选字段，旧记录原样有效；0.16.4 及更早的读取方会把审批记录计为坏行并跳过。
 - 一次审批只放行一次成功发布；failed / unknown 不使用审批；对其他 commit 的审批不能放行。
+
+## 五十六、多人与多会话协作架构（worktree 隔离与消除式汇合）
+
+> 来源变更：multi-user-collaboration（D16/D17）。场景：S44、S45。功能规格 §2.96；权威协议 `spec/change-management.md` §多人协作。
+
+### 56.1 协作模型总览
+
+系统不引入任何中央服务或在线协调：**协作单元 = 独立工作目录**（跨 clone 或同 clone 的 worktree），**共享介质 = git**，**汇合点 = pull / merge-back 之后的本地收敛命令**。guard 单锁与全部既有门禁零改动——并行能力来自文件系统隔离（每 worktree 一把本地锁），不来自锁语义演进（D16）。
+
+```
+开发者A(clone-1) ──┐                        ┌── 开发者B(clone-2)
+  提案a(本地guard)  │      git(唯一共享)      │   提案b(本地guard)
+  merge→落盘定稿 ──┼── push / pull --rebase ──┼─ merge→落盘定稿
+                   │                          │
+        收敛(openlogos sync)：重排本人未推送工件 + index 重建
+```
+
+### 56.2 组件与职责
+
+| 组件 | 职责 | 复用/新建 |
+|---|---|---|
+| worktree 会话入口（change --worktree） | 建分支/worktree、复制本地 config、部署 AI 资产、创建提案；失败零残留 | 新建（薄封装，复用 sync 部署） |
+| 托管区块固定条目 | `logos/.openlogos-guard`、`.worktrees/` 永不入库；幂等渲染；已跟踪给 untrack 指引 | 复用（追加固定条目） |
+| counter 派生取号 | `max(configured ?? 0, max已落盘+1)`；yaml 停止写回；status JSON 暴露派生 next-id | 推广（DXX 公式一般化） |
+| merge preflight 三查 | fetch 陈旧 view 阻塞（离线降级警告）→ 编号落盘定稿 → 撞号防御检测 | 扩展（merge 准入前挂三点检查） |
+| 收敛重排器 | 检出同号异 slug；对本人未推送工件按 S37 注册文法确定性改写；diff 清单；歧义 fail-closed | 新建（注册表上的纯函数变换） |
+| 锚失效报错增强 | `delta_section_anchor_unresolvable` 附 origin 新版本与被改小节上下文 | 扩展 |
+| index 重建收口 | 重排后自动 `openlogos index` 等效重建 resource_index | 复用 |
+
+### 56.3 关键不变量
+
+1. **编号唯一性**：任意时刻已落盘 S/D/F 集合无同号异 slug——由「落盘定稿（写侧结构保证）+ 收敛重排（读侧消解）」共同维护，而非检测协议。
+2. **guard 永不入库**：guard 是工作目录本地状态；固定条目保证新项目默认正确，sync 幂等升级存量项目。
+3. **门禁零漂移**：guard 单锁、merge F2、verify/smoke/archive、PreToolUse 判定语义不变；worktree 只是隔离手段。
+4. **重排边界**：只改写注册文法内的确定性引用；文法外歧义 fail-closed 整体不落盘——与 L8 守恒同一哲学（宁停勿猜）。
+5. **重排范围**：仅本 clone 未推送工件；已推送（origin 可见）编号视为冻结，永不改写他人产物。
+
+### 56.4 数据流与冲突面
+
+| 共享状态 | 冲突面 | 处置 |
+|---|---|---|
+| guard | 入库互写（历史项目） | 固定条目 + untrack 指引 |
+| counter 行 | 同行并发写 | 状态删除（派生化）——冲突面不存在 |
+| S/D/F 编号 | 同基线取号必同号 | 落盘定稿 + 收敛重排 |
+| resource_index | 同位置追加 / 漂移 | 收敛时整体重建 |
+| 主文档（同文档少数场景） | 同节并发改 | fetch 阻塞前置 + 锚 fail-closed + 恢复重放 |
+| modules/features 列表 | 同位置插入 | git 常规合并，人工保两侧（无机器语义） |
+
+### 56.5 非功能约束
+
+- 离线可用：fetch 检查失败降级为警告；所有收敛机制纯本地。
+- 性能：取号派生与撞号检测为单次文件扫描（注册表判据），与 change-lint 同数量级；重排仅触碰本提案工件。
+- 兼容：semver minor；降级旧版 CLI 无破坏（见功能规格 §2.96.4）。

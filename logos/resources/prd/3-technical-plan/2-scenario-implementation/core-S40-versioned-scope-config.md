@@ -309,3 +309,58 @@ sequenceDiagram
 - 根规范：`spec/pretooluse-guard.md` 保护范围变更的宿主原生审批与已知覆盖限制；`spec/cursor-plugin.md` 的 `beforeShellExecution` 审批；`spec/logos.config.schema.json` 的 `guard` 字段。
 - 决策：C02（两张清单）、C03（本案只做 CLI 子命令）、C14（保护范围变更经宿主原生审批、AI 执行），以及 C13（独立 openlogos 调用不报告变化）。
 - 测试：UT-S40-01～UT-S40-28、ST-S40-01～ST-S40-15（`core-S40-test-cases.md`）。
+
+## S40 协作固定条目扩展（guard 与 .worktrees/ 永不入库）
+
+> 来源变更：multi-user-collaboration（S45 状态分层）。功能规格 §2.96.1；架构五十六 §56.2。
+
+### 场景目标
+
+把 `logos/.openlogos-guard`（工作目录锁）与 `.worktrees/`（worktree 会话目录）纳入 `.gitignore` 托管区块固定条目，使多 clone / 多 worktree 协作下这两类本地状态永不入库互写；既有项目经 `openlogos sync` 幂等获得，已被 git 跟踪的 guard 输出 untrack 指引。
+
+### 时序（sync 幂等渲染，含已跟踪提示）
+
+```mermaid
+sequenceDiagram
+    participant U as 开发者
+    participant C as openlogos sync
+    participant FS as .gitignore 托管区块
+    participant G as git 索引
+
+    U->>C: openlogos sync
+    C->>FS: 固定条目集 = {logos/.openlogos-runtime/, logos/.openlogos-guard, .worktrees/}
+    alt 区块缺失/落后
+        C->>FS: 渲染托管区块（幂等，区块外逐字节不变）
+    else 已含全部固定条目
+        C-->>U: 不写盘（字节与 mtime 不变）
+    end
+    C->>G: git ls-files 检查 guard 是否已被跟踪
+    alt guard 已被跟踪
+        C-->>U: 提示 git rm --cached logos/.openlogos-guard（不自动改写索引）
+    end
+    C-->>U: sync 完成（既有产物照常重生成）
+```
+
+### 步骤说明
+
+1. **开发者** 执行任意会触发托管区块渲染的命令（sync / init / adopt）。
+2. **CLI** 以固定条目集（原 `logos/.openlogos-runtime/` 追加 `logos/.openlogos-guard`、`.worktrees/`）幂等重渲染；结果与现状相同不写盘。
+3. **CLI** 检查 git 索引：guard 已被跟踪时输出 untrack 指引（EX-40.4 既有「固定运行时条目不经询问写入」语义不变，只是条目集扩大）。
+4. **区块损坏** 时维持既有 fail loud（时序 D）不变。
+
+### 异常与边界
+
+#### EX-40.8：guard 已被历史项目跟踪
+- **触发条件**：项目在固定条目加入前已提交过 `logos/.openlogos-guard`
+- **期望响应**：渲染照常；输出 `git rm --cached logos/.openlogos-guard` 指引（trackedHints 既有形态）
+- **副作用**：无自动索引改写
+
+#### EX-40.9：固定条目幂等回归
+- **触发条件**：连续两次 sync
+- **期望响应**：第二次不写盘（.gitignore 字节不变）；测试锚定固定条目集三条
+- **副作用**：无
+
+### 追溯
+- 需求：S45-AC-07
+- 测试：UT-S40-30～、ST-S40-16～
+- 决策：D17（guard 永不入库不变量）

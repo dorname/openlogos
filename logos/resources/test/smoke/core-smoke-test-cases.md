@@ -2454,3 +2454,16 @@
 - 结果写入 smoke reporter（`logos/resources/verify/smoke-results.jsonl`），每条用例只有一条结果记录，字段含 `id/status/timestamp/duration_ms/environment/target_environment/evidence`；`target_environment` 取本次 `OPENLOGOS_SMOKE_ENV`（正式执行为 `prod`），skip 记录不声明 `target_environment`；evidence 记录 V、tag 提交号、registry tarball SHA-256、Release 附件 SHA-256、HTTP 状态码、隔离 prefix 路径与各步 JSON 摘要，SMOKE-core-275 另记镜像摘要与容器内 uid。**失败不得写 pass**。
 - 判据以 JSON 字段、退出码、SHA-256、HTTP 状态码与发布目录内容为准；页面与发布说明断言只针对版本号、固定路径、是否为回退提示与上表列出的关键字，不解析其余人类可读文案。
 - 完成后运行 smoke 覆盖预检，确认 SMOKE-core-272～SMOKE-core-279 均被 runner 覆盖。
+
+## OpenLogos 多人协作安装态 smoke（SMOKE-core-280～283）
+
+> 来源变更：multi-user-collaboration（S44/S45）。执行边界沿用本文件既有安装态口径：一次性临时 git 项目（`mktemp -d`）、一次性 prefix 安装、不触碰本仓与用户其他仓库；本组只验证安装态最小可用性，深度行为由 UT/ST 承担（core-S44/S45-test-cases.md）。
+
+### 一、冒烟测试用例补充
+
+| ID | 描述 | 来源 | 目标环境 | 前置条件 | 操作 | 预期结果 |
+|----|------|------|----------|----------|------|----------|
+| SMOKE-core-280 | sync 渲染协作固定条目 | S45 / S40 协作扩展 | staging | 一次性 launched git 项目 | `openlogos sync` 后读取 `.gitignore` 托管区块 | 区块固定条目恰含 `logos/.openlogos-runtime/`、`logos/.openlogos-guard`、`.worktrees/` 三条；再次 sync 字节不变 |
+| SMOKE-core-281 | status 暴露派生 next-id | S45 counter 派生化 | staging | 同上项目、已含既有模块结构 | `openlogos status --format json` | 输出 `next_scenario_id` / `next_feature_id` / `next_decision_id`，均等于已落盘最大号 + 1 |
+| SMOKE-core-282 | change --worktree 创建与清理 | S44 | staging | 同上项目 | ① `openlogos change smoke-wt --worktree`；② 在 `.worktrees/smoke-wt` 内执行 `openlogos status`；③ 清理 worktree 与分支 | ① exit 0 且输出会话启动指引；② 以 worktree 为项目根正常输出；③ `git worktree list` 无残留 |
+| SMOKE-core-283 | sync 收敛幂等与 counter 不写回 | S45 | staging | 同上项目（yaml 含旧 counter 行） | ① 记录 yaml 快照；② `openlogos sync`（无可重排项）；③ 再执行一次 | 两次均 exit 0；② ③ 后 yaml counter 行逐字节不变；无重排报告 |

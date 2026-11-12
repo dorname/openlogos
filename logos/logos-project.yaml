@@ -24,11 +24,11 @@ tech_stack:
     source_of_truth: GitHub tag + CHANGELOG.md
     release_archive: GitHub Releases
 scenario_counter:
-  next_id: 41
+  next_id: 46
 feature_counter:
-  next_id: 9
+  next_id: 10
 decision_counter:
-  next_id: 13
+  next_id: 18
 modules:
   - id: core
     name: 核心功能
@@ -72,6 +72,10 @@ features:
     spec: core-01
   - id: F08
     name: 机器可读输出与规范
+    module: core
+    spec: core-01
+  - id: F09
+    name: 多人与多会话协作
     module: core
     spec: core-01
 scenarios:
@@ -195,6 +199,14 @@ scenarios:
     name: 版本管理范围配置（ignore / exempt 与 .gitignore 托管区块）
     module: core
     feature: F04
+  - id: S44
+    name: worktree 并行会话隔离
+    module: core
+    feature: F09
+  - id: S45
+    name: 跨 clone 汇合与编号唯一性
+    module: core
+    feature: F09
 release_workflows:
   cli_tag_release:
     name: CLI tag 驱动标准发版（GitHub Workflow 唯一入口）
@@ -649,6 +661,18 @@ resource_index:
     desc: environment-promotion-approval 创建的 test 基线
   - path: logos/resources/decisions/core-D15-proposal-default-environment.md
     desc: proposal-default-environment 创建的 decision 基线
+  - path: logos/resources/decisions/core-D16-worktree-over-guard-multi-lock.md
+    desc: multi-user-collaboration 创建的 decision 基线
+  - path: logos/resources/decisions/core-D17-reconciliation-by-elimination.md
+    desc: multi-user-collaboration 创建的 decision 基线
+  - path: logos/resources/prd/3-technical-plan/2-scenario-implementation/core-S44-worktree-parallel-sessions.md
+    desc: multi-user-collaboration 创建的 scenario 基线
+  - path: logos/resources/prd/3-technical-plan/2-scenario-implementation/core-S45-cross-repo-reconciliation.md
+    desc: multi-user-collaboration 创建的 scenario 基线
+  - path: logos/resources/test/core-S44-test-cases.md
+    desc: multi-user-collaboration 创建的 test 基线
+  - path: logos/resources/test/core-S45-test-cases.md
+    desc: multi-user-collaboration 创建的 test 基线
 conventions:
   - 场景编号全局唯一，由 scenario_counter.next_id 维护，严禁模块重新从 S01 编号
   - "存量项目接入统一写入 bootstrap: adopted，读取时兼容历史 skipped"

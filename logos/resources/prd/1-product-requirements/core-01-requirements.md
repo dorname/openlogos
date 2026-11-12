@@ -3435,3 +3435,98 @@ Claude Code 提供官方设置 `language`（Claude 回复的首选语言）。�
 - 功能规格：§2.95；架构：「五十五、环境晋级与审批门」；决策：D14。
 - 场景：`core-S43-environment-promotion-approval.md`；相关场景 S41、S42、S21、S19、S09。
 - 测试：`core-S43-test-cases.md`，以及 `core-S41-test-cases.md`、`core-S09-test-cases.md` 中 environment-promotion-approval 新增用例。
+
+## S44: worktree 并行会话隔离
+
+> 来源变更：multi-user-collaboration（决策 C01、C03、C06，D16）。格式与判据的权威定义见 `spec/change-management.md` §多人协作；功能规格 §2.96；架构五十六。
+
+### 场景定义
+
+- **触发条件**：单一开发者希望在同一个仓库内并行推进两个及以上变更提案（典型：一个提案等待人类确认时，开第二个 AI 会话推进另一提案），或同一工作目录的第二个 AI 会话执行 `openlogos change` 被 guard 单锁拒绝时。
+- **用户价值**：无需引入 guard 多锁或修改任何既有门禁（merge F2 一致性、verify、smoke、archive 行为零漂移），即可获得提案级并行能力；每个会话拥有独立完整的单提案工作区，spec 与代码并行天然安全；并行机制是短暂的工具托管分支，不增加团队分支管理负担。
+- **优先级**：P1
+- **主路径**：开发者执行 `openlogos change <slug> --worktree`，CLI 创建短暂分支 `openlogos/<slug>` 与工作目录 `.worktrees/<slug>`（托管区块固定条目忽略）、在缺 `logos/logos.config.json` 时从主工作区复制、部署 AI 资产并创建提案；开发者从该目录启动新 AI 会话，走既有单提案全流程（plan → delta → merge → slice → code → verify）；verify 通过后将分支 merge-back 进集成分支、执行 `openlogos sync` 收敛（见 S45）、删除分支与 worktree、归档提案。
+
+### 验收条件
+
+#### 正常：guardConflict 指引 worktree
+- **GIVEN** 工作目录已有活跃提案（guard 存在）
+- **WHEN** 第二会话执行 `openlogos change <slug2>`
+- **THEN** 仍以单锁语义拒绝（不创建提案、不写 guard）；错误提示给出并行出路：`openlogos change <slug2> --worktree`（同目录双会话被拒是刻意保留的正确行为）
+
+#### 正常：--worktree 一条龙创建
+- **GIVEN** 干净工作区、无同名分支与 worktree
+- **WHEN** 执行 `openlogos change <slug> --worktree`
+- **THEN** 创建分支 `openlogos/<slug>` 与 `.worktrees/<slug>`；worktree 内部署 AI 资产（等效 `openlogos sync` 产物）；worktree 缺 `logos/logos.config.json` 且主工作区存在时复制之；随后在 worktree 内执行提案创建并输出「请从 .worktrees/<slug> 启动新会话」指引；主工作区的 guard 与提案状态不受影响
+
+#### 正常：单提案全流程零漂移
+- **GIVEN** worktree 内已创建提案
+- **WHEN** 依次执行既有单提案流程（change-lint、merge、slice、code、verify）
+- **THEN** 各命令行为与主工作区完全一致（guard 单锁、merge F2、门禁与派生零漂移）；无需任何多提案感知的新参数
+
+#### 正常：merge-back 收敛与清理
+- **GIVEN** worktree 内提案 verify 通过
+- **WHEN** 将 `openlogos/<slug>` 合入集成分支并执行 `openlogos sync`
+- **THEN** 汇合冲突按 S45 协议收敛（编号重排、index 重建）；收敛通过后删除分支与 worktree 不产生任何仓库残留（`.worktrees/` 不入库）
+
+#### 异常：--worktree 创建失败零残留
+- **GIVEN** 同名分支已存在或 worktree 路径被占用
+- **WHEN** 执行 `openlogos change <slug> --worktree`
+- **THEN** 以稳定错误码拒绝并给出处置指引；不产生半套 worktree / 分支 / 提案残留
+
+### 追溯
+- 需求：S44-AC-01（guardConflict 指引）、S44-AC-02（一条龙创建）、S44-AC-03（零漂移）、S44-AC-04（merge-back 收敛）
+- 测试：UT-S44-01～、ST-S44-01～（见 core-S44-test-cases.md）
+- 决策：D16
+
+## S45: 跨 clone 汇合与编号唯一性
+
+> 来源变更：multi-user-collaboration（决策 C01、C04、C07、C08，D17）。权威协议见 `spec/change-management.md` §多人协作；功能规格 §2.96；架构五十六。
+
+### 场景定义
+
+- **触发条件**：多名开发者各自 clone 仓库并行推进提案后执行 push/pull 汇合时；具体冲突面：guard 文件入库互写、场景/feature/决策编号撞号（同基线取「下一个号」必然同号）、`logos-project.yaml` counter 行冲突、resource_index 漂移、相关模块同文档冲突。
+- **用户价值**：5 人团队「各自 clone 各自提案、git 汇合各归各位」：并发产生的撞号由机器自动消解（重排本人未推送工件），yaml 数字冲突面被删除（counter 派生化），同文档冲突有确定性恢复路径（重放而非手工缝合）——协作不需要任何中央服务或在线协调。
+- **优先级**：P0（本次交付重点）
+- **主路径**：开发者 pull --rebase 后执行 `openlogos merge`（preflight 三查：fetch 陈旧 view 阻塞、编号落盘定稿、撞号检测）；push 前执行 `openlogos sync` 收敛（自动重排本人未推送工件、重建 resource_index）；counter 不再写入 yaml（取号一律派生自已落盘集合）。
+
+### 验收条件
+
+#### 正常：编号落盘定稿
+- **GIVEN** delta 拟用编号 S46，而当前已落盘场景最大号为 S46（他人已汇入）
+- **WHEN** 执行 `openlogos merge <slug>`
+- **THEN** 落盘时按 `max(已落盘)+1` 现场定稿（本例落盘为 S47），SXX/FXX 同 DXX 一致；本地落盘永不撞号（结构保证）
+
+#### 正常：收敛自动重排
+- **GIVEN** pull 拉入他人的 `core-S47-a.md`，本地已有未推送的 `pay-S47-b.md`（同号不同 slug）
+- **WHEN** 执行 `openlogos sync`
+- **THEN** 本地工件自动重排为 S48：文件名、`# S48` 标题、`UT-S47-*`→`UT-S48-*` 等注册文法内 ID 确定性改写，输出 diff 清单；随后 resource_index 重建
+
+#### 异常：文法外歧义引用 fail-closed
+- **GIVEN** 待重排工件中存在注册文法无法唯一归属的编号引用（散文手写「见 S47」等歧义形态）
+- **WHEN** 执行 `openlogos sync`
+- **THEN** 以稳定错误拒绝该引用的自动改写，报告位置并要求人工处理；已确定部分不落盘（整体 fail-closed，不做半套重排）
+
+#### 正常：counter 派生化
+- **GIVEN** yaml 中 `scenario_counter.next_id` 落后于已落盘最大号（或缺失）
+- **WHEN** 任意命令需要取号、或 AI 读取 `openlogos status --format json`
+- **THEN** 取号基准 = `max(configured_next_id ?? 0, max已落盘+1)` 派生，行为正确；yaml 不再写回 counter 行（旧值兼容读取作下限）；status JSON 暴露 `next_scenario_id` / `next_feature_id` / `next_decision_id` 派生字段
+
+#### 正常：同文档冲突恢复重放
+- **GIVEN** 本地已基于旧 view merge，pull 时主文档 git 冲突
+- **WHEN** 按「checkout 该主文档至 origin 版 → 完成 pull → 重放 `openlogos merge`（幂等）」恢复
+- **THEN** delta 锚失效时 fail-closed 并指明「目标文档在 origin 有新版本、§X 被改动」，基于新 view 重写 delta 后重放成功；全程不在 git 冲突标记里手工缝合章节
+
+#### 正常：merge preflight fetch 检查
+- **GIVEN** delta 触达的目标文档在 origin 已有更新
+- **WHEN** 执行 `openlogos merge <slug>`
+- **THEN** 阻塞并提示先 pull（离线时 fetch 失败降级为警告，不阻塞本地 merge）
+
+#### 正常：guard 永不入库
+- **GIVEN** 任意项目执行 `openlogos sync`
+- **THEN** `.gitignore` 托管区块固定条目含 `logos/.openlogos-guard` 与 `.worktrees/`，幂等重渲染；guard 已被 git 跟踪时输出 untrack 指引（不自动改写用户索引）
+
+### 追溯
+- 需求：S45-AC-01（定稿）、S45-AC-02（重排）、S45-AC-03（fail-closed 边界）、S45-AC-04（派生化）、S45-AC-05（恢复重放）、S45-AC-06（fetch 检查）
+- 测试：UT-S45-01～、ST-S45-01～、SMOKE-core-280～（见 core-S45-test-cases.md 与 core-smoke-test-cases.md）
+- 决策：D17

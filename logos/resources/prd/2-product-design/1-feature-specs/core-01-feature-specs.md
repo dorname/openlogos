@@ -5261,3 +5261,40 @@ Linux 以 `/proc/<pid>/environ` 读取进程初始环境。不可转储（non-du
 | 生成指令硬红线条目 | `cli/src/commands/init.ts` | `cli/test/s43-*.test.ts` |
 
 - 场景：S43（新增）、S42、S41、S21、S09；测试：`core-S43-test-cases.md` 全部用例与 `core-S41-test-cases.md`、`core-S09-test-cases.md` 中 environment-promotion-approval 新增用例；决策：D14。
+
+## 2.96 多人与多会话协作（worktree 隔离与跨 clone 汇合）
+
+> 来源变更：multi-user-collaboration（决策 C01、C03～C08，D16/D17）。权威协议见 `spec/change-management.md` §多人协作。场景：S44、S45（新增）、S09、S40（修改）。
+
+### 2.96.1 状态分层（谁本地、谁共享）
+
+- **本地永不入库**（`.gitignore` 托管区块固定条目，`openlogos sync` 幂等重渲染；已被跟踪的输出 untrack 指引、不自动改写索引）：`logos/.openlogos-guard`（工作目录锁）、`logos/.openlogos-runtime/`、`.worktrees/`。
+- **共享入库**：`logos/logos.config.json`、`logos/logos-project.yaml`、`logos/resources/**`、`logos/changes/<slug>/**`（活跃提案）、`logos/changes/archive/**`。
+- guard 表达「本工作目录此刻在做什么」，是本地状态；多人各自 clone / 多 worktree 各持一把锁，互不拦截是正确语义。
+
+### 2.96.2 worktree 会话生命周期（S44）
+
+1. **入口**：`openlogos change <slug> --worktree`——创建短暂分支 `openlogos/<slug>` 与 `.worktrees/<slug>`；worktree 缺 `logos/logos.config.json` 且主工作区存在时复制；在 worktree 内部署 AI 资产（等效 `openlogos sync`）并创建提案；输出「请从 .worktrees/<slug> 启动新会话」指引。裸 git 等价路径（`git worktree add` + `openlogos sync` + `openlogos change`）并存于文档，便利命令不是唯一入口。
+2. **会话内**：既有单提案全流程零漂移——guard 单锁、merge F2 一致性、verify、smoke、archive、PreToolUse 判定全部不变；不引入任何多提案感知参数。
+3. **汇合**：verify 通过后将分支 merge-back 进集成分支，执行 `openlogos sync` 收敛（§2.96.3），随后删除分支与 worktree、归档提案。
+4. **失败路径**：创建失败（同名分支 / 路径占用 / sync 部署失败）零残留——先全量准备、后统一落盘，任一步失败清理已建产物并以稳定错误码报告。
+5. **同目录双会话**：继续被 guardConflict 拒绝；提示文案给出 `--worktree` 出路。
+
+### 2.96.3 跨 clone 汇合协议（S45，消除式）
+
+1. **counter 派生化**：`scenario_counter` / `feature_counter` / `decision_counter` 停止写回 yaml；取号基准 = `max(configured_next_id ?? 0, max已落盘+1)` 派生（旧 yaml 值兼容读取作下限）；`status --format json` 新增 `next_scenario_id` / `next_feature_id` / `next_decision_id`（additive，契约随实现升版）。全局唯一约定不变。
+2. **编号落盘定稿**：SXX/FXX 与 DXX 一致——delta 携带拟用号，`openlogos merge` 落盘时按派生公式现场定稿；编号变更随落盘同步改写本提案 deltas 内的全部注册文法引用。
+3. **merge preflight 三查**（顺序执行，任一 fail 即稳定错误退出、零写入）：
+   - **fetch 检查**：`git fetch` 后比对 delta 触达目标文档在 origin 的 blob——更新则阻塞提示先 pull（离线 fetch 失败降级警告不阻塞）；
+   - **编号定稿**：按 2 派生并改写拟用号；
+   - **撞号检测**：定稿后编号仍与已落盘集合冲突（理论上不可能，防御性）即 fail-closed。
+4. **锚失效报错增强**：`delta_section_anchor_unresolvable` 输出补充「目标文档在 origin 有新版本、§X 被改动过」上下文，指引基于新 view 重写 delta。
+5. **收敛自动重排**（`openlogos sync`，pull / merge-back 之后、push 之前执行）：扫描已落盘 S/D/F 全集检出同号异 slug；对本 clone 未推送工件执行确定性重排（S37 注册文法：文件名、`# SXX` 标题、`UT-*`/`ST-*`/`SMOKE-*`/`DXX`/`FXX` 表内 ID 与结构化引用），输出 diff 清单；文法外歧义引用 fail-closed 退人工、整体不落半套；重排后自动执行 resource_index 重建（`openlogos index` 等效路径）。
+6. **恢复重放（同文档冲突已发生）**：规范路径 =「`git checkout` 该主文档至 origin 版 → 完成 pull → 重放 `openlogos merge`（幂等）→ 锚失效则基于新 view 重写 delta 再重放」；**禁止**在 git 冲突标记里手工缝合章节（意图尽失且守恒语义不可审计）。
+7. **分工惯例**：按 module 边界认领（`openlogos module add` 登记）；push 前 `git pull --rebase` + `openlogos sync` 收敛；同 slug 极端撞名人工更名；语义取舍（两版章节听谁的）始终由人重写 delta 时决定——自动语义合并是明确红线。
+
+### 2.96.4 兼容与降级
+
+- 全部为向后兼容增量：固定条目幂等追加、旧 counter 兼容读取、新增 JSON 字段 additive、重排只作用于本人未推送工件。
+- 降级到旧版 CLI：新固定条目无害（git 照常忽略）；guard / config 无格式变更；派生取号与旧「读 yaml」行为在单机场景等价。
+- 门禁零漂移声明：guard 单锁、merge F2、verify / smoke / archive、PreToolUse 判定行为均不变——worktree 隔离不触碰任何门禁语义。

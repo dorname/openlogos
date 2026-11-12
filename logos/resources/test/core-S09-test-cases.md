@@ -1553,3 +1553,25 @@
 - guard 用例以真实 `plugin/bin/guard-check` 与 sync 部署副本执行，不以函数级桩替代；Cursor 用例以真实 runtime 处理函数执行。
 - 「文件字节不变」以判定前后 SHA-256 比对取证；不访问真实宿主。
 - 测试结果写入 `logos/resources/verify/test-results.jsonl`（OpenLogos reporter），测试名包含用例 ID。
+
+## 十、并行协作扩展测试用例（multi-user-collaboration）
+
+> 覆盖 S09 协作扩展（guardConflict worktree 指引、merge preflight 三查、锚失效报错增强）。前置项目形态同本文件既有约定：launched、git 仓库；涉及 origin 的用例使用本地 bare 仓库模拟远端。
+
+### 单元测试（UT）
+
+| ID | 描述 | 前置条件 | 操作 | 预期结果 |
+|----|------|----------|------|----------|
+| UT-S09-467 | guardConflict 文案含 worktree 指引且行为不变 | guard 存在指向提案 a | 调用 change 解析层（新会话 slug b） | 以既有错误码拒绝、不写 guard、不建目录；提示文本含 `--worktree` 与 `openlogos change b --worktree` 示例 |
+| UT-S09-468 | preflight fetch 检查：目标文档在 origin 有更新即阻塞 | bare 远端上 delta 触达文档比本地新（构造 origin 领先 commit） | 执行 merge preflight | 稳定错误（目标文档清单 + 先 pull 指引）；merge 零写入 |
+| UT-S09-469 | fetch 失败离线降级 | 注入 fetch 抛错（或非 git 仓库） | 执行 merge preflight | 输出警告继续后续检查；不因离线阻塞本地 merge |
+| UT-S09-470 | 编号落盘定稿：拟用号被占 | 已落盘 max=S46；delta 拟用 S46（含 `UT-S46-01` 引用） | 执行定稿 | 落盘为 S47；deltas 文件名、`# S47` 标题、`UT-S46-*` 引用同步改写；输出「S46→S47 已定稿」报告 |
+| UT-S09-471 | 定稿后撞号防御 fail-closed | 注入定稿号与已落盘集合冲突（模拟公式缺陷） | 执行防御检测 | 稳定错误、零写入、报告冲突编号 |
+| UT-S09-472 | 锚失效报错含 origin 上下文 | 目标文档锚 0 命中且 origin blob 与本地不同 | 触发锚解析失败 | `delta_section_anchor_unresolvable` 输出附加「目标文档在 origin 有新版本、§X 被改动」与重写指引 |
+
+### 场景测试（ST）
+
+| ID | 描述 | 覆盖 Steps | 前置条件 | 操作序列 | 预期结果 |
+|----|------|-----------|----------|----------|----------|
+| ST-S09-206 | 同目录第二提案被拒并指引 worktree（端到端） | S09 协作扩展 Step 1 | 活跃提案 a 存在 | ① 新会话执行 `openlogos change b`；② 快照对比 | ① exit 1，文案含 `--worktree` 指引；② 全项目快照与执行前一致 |
+| ST-S09-207 | merge 在陈旧 view 上被阻塞（端到端） | S09 协作扩展 Step 2 | 本地与 bare 远端同源；远端已推进 delta 触达文档 | ① `git fetch <bare>`（CLI 内部执行）；② `openlogos merge a` | ② 稳定错误列出目标文档并提示先 pull；提案目录与 resources 快照不变 |

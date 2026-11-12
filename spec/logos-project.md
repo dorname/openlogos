@@ -16,7 +16,7 @@
 |------|------|------|------|
 | `project` | object | 是 | 项目基本信息 |
 | `tech_stack` | object | 是 | 技术栈描述 |
-| `scenario_counter` | object | 否 | 全局场景编号计数器（多模块项目必填） |
+| `scenario_counter` | object | 否 | 全局场景编号计数器（multi-user-collaboration 起降级为兼容下限：取号以已落盘集合派生，CLI 不再写回；多模块项目建议保留历史值） |
 | `modules` | array | 否 | 模块注册表（多模块项目必填） |
 | `deployment_gates` | object | 否 | Initial 阶段 launch 前的部署与 smoke 门禁声明 |
 | `scenarios` | array | 否 | 场景清单（单一真相来源，Phase 3-1 前写入） |
@@ -69,13 +69,13 @@
 
 ### scenario_counter
 
-对象，维护全局场景编号计数器。多模块项目必填，确保不同模块的场景编号全局唯一、不重复。
+对象，全局场景编号计数器。multi-user-collaboration（D17）起为**兼容下限**：唯一事实源是已落盘场景集合（文件系统），取号一律派生，yaml 不再写回。
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `next_id` | integer | 是 | 下一个场景的序号（整数），如 `19` 表示下一个场景从 `S19` 开始 |
+| `next_id` | integer | 否 | 兼容下限：取号基准 = `max(next_id ?? 0, max已落盘SXX+1)`；CLI 与 AI 均不再写回该字段；`openlogos status --format json` 以 `next_scenario_id` 暴露派生值 |
 
-**使用规则**：AI 每次生成新场景前必须读取此字段取号，生成后立即将 `next_id` 加 1 并写回，严禁不同模块从 S01 重新开始编号。
+**使用规则**：生成新场景取号 = `max(configured ?? 0, max已落盘+1)` 派生（与 DXX 分配公式同型）；`openlogos merge` 落盘时定稿，定稿号 ≠ 拟用号时由 CLI 改写本提案 deltas 内注册文法引用。全局唯一约定不变，严禁不同模块从 S01 重新开始编号。多 clone 汇合协议见 `spec/change-management.md` §多人协作。
 
 ### modules
 
@@ -228,13 +228,13 @@ deployment_gates:
 
 #### feature_counter
 
-对象，维护全局 feature 编号计数器，仿 `scenario_counter`。
+对象，全局 feature 编号计数器，语义与 `scenario_counter` 一致：multi-user-collaboration 起为**兼容下限**，取号派生、yaml 不再写回。
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `next_id` | integer | 否 | 下一个 feature 的序号，如 `4` 表示下一个从 `F04` 开始 |
+| `next_id` | integer | 否 | 兼容下限：取号基准 = `max(next_id ?? 0, max已落盘FXX+1)`；不再写回；`openlogos status --format json` 以 `next_feature_id` 暴露派生值 |
 
-**使用规则**：由 AI 维护（CLI 不取号）。生成新 feature 前读取取号、生成后 `next_id` 加 1 写回；feature ID 项目全局唯一，严禁不同 module 从 F01 重号。**缺失默认**：`feature_counter` 或 `next_id` 缺失时 `configured_next_id = feature_counter?.next_id ?? 1`（存量首次回填从 `F01` 起，不报错）。冲突恢复见 `spec/module-naming-convention.md`（`allocated = max(configured_next_id, max(existing)+1)`，持久化 `allocated+1`）。
+**使用规则**：取号 = 派生公式（同 `scenario_counter`）；`decision_counter` 同型（`next_decision_id` 暴露）。feature ID 项目全局唯一，严禁不同 module 从 F01 重号。**缺失默认**：counter 或 `next_id` 缺失时 `configured = 0`（派生值仍正确，不报错）。冲突消解见 `spec/change-management.md` §多人协作（落盘定稿 + 收敛重排；既有 `allocated = max(configured, max(existing)+1)` 公式被定稿机制吸收）。
 
 #### features
 

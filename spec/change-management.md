@@ -907,3 +907,62 @@ failed/aborted 不产生规格提交；普通 fatal failed 无自动动作；rec
 ### 损坏的不可逆性
 
 被吞内容**无法从落盘文本反推**——信息已丢失，只能回溯归档 delta 取原文。因此这条规则的价值不在修复，在**拦截**：新增实例由「写下的 == 落盘的」对账当场拦下，不再进入主文档。
+
+## 多人与多会话协作（multi-user-collaboration）
+
+> 状态：规范性｜场景：S44、S45｜决策：D16、D17｜功能规格 §2.96｜架构五十六。本章定义 OpenLogos 在「多人各自 clone 并行」与「单人多 AI 会话并行」两类协作形态下的状态分层、会话隔离与 git 汇合协议。guard 单锁与全部既有门禁语义零改动。
+
+### 1. 状态分层（谁本地、谁共享）
+
+- **本地永不入库**（`.gitignore` 托管区块固定条目，`openlogos sync` 幂等重渲染；已被 git 跟踪的输出 `git rm --cached` 指引、不自动改写索引）：
+  - `logos/.openlogos-guard` —— 工作目录锁，表达「本工作目录此刻在做什么」；
+  - `logos/.openlogos-runtime/`；
+  - `.worktrees/` —— worktree 会话目录。
+- **共享入库**：`logos/logos.config.json`、`logos/logos-project.yaml`、`logos/resources/**`、`logos/changes/<slug>/**`（活跃提案，普通项目默认跟踪；各仓可按自身约定排除——dogfooding 特例不属于本协议强制项）、`logos/changes/archive/**`。
+
+### 2. worktree 会话隔离（S44，单人并行）
+
+- 并行单元 = 一个 git worktree（`.worktrees/<slug>`）+ 一条短暂分支 `openlogos/<slug>`；同一分支不得同时在多个 worktree 检出（git 约束），分支在 verify 通过 merge-back 后即删——它是工具托管细节，不是团队维护的长期 feature branch。
+- 入口 `openlogos change <slug> --worktree`：先全量准备（建分支/worktree、部署 AI 资产、worktree 缺 `logos/logos.config.json` 时自主工作区复制、创建提案），任一步失败清理零残留；裸 git 等价路径（`git worktree add` + `openlogos sync` + `openlogos change`）并存。
+- worktree 内为既有单提案全流程，guard 单锁、merge F2、verify / smoke / archive、PreToolUse 判定行为与主工作区完全一致；**不存在任何多提案感知参数**。
+- 同目录双会话继续被 guardConflict 拒绝；提示文案指引 `--worktree`。这是刻意保留的正确行为。
+
+### 3. 跨 clone 汇合协议（S45，消除式）
+
+协作不引入任何中央服务或在线协调；共享介质只有 git，全部汇合机制本地可执行、离线可用。
+
+#### 3.1 编号唯一性（结构保证，非检测协议）
+
+1. **取号派生**：SXX / FXX / DXX 取号基准 = `max(configured_next_id ?? 0, max已落盘+1)`；`logos-project.yaml` 停止写回 counter（旧值兼容读取作下限，详见 `spec/logos-project.md`）；`openlogos status --format json` 暴露 `next_scenario_id` / `next_feature_id` / `next_decision_id` 派生字段。
+2. **落盘定稿**：delta 携带拟用号，`openlogos merge` 落盘时按派生公式现场定稿；定稿号 ≠ 拟用号时同步改写本提案 deltas 内全部注册文法引用（文件名、`# SXX` 标题、`UT-*` / `ST-*` / `SMOKE-*` 等）并输出改写清单。本地落盘永不撞号。
+3. **收敛自动重排**：两人基于同一基线各自定稿同号是**必发常态**。pull / merge-back 之后、push 之前执行 `openlogos sync` 收敛——扫描已落盘全集检出同号异 slug；**origin 可见（已推送）编号冻结**，对本 clone 未推送工件重排至空号（注册文法内确定性改写，输出 diff 清单），随后自动重建 resource_index。
+4. **重排边界**：只改写 S37 注册文法内的确定性引用；文法外歧义引用（散文手写「见 S44」等）fail-closed 报告位置清单、整体不落盘——与 L8 守恒同一哲学（宁停勿猜）。
+
+#### 3.2 merge preflight 三查（挂既有准入序列之前，任一 fail 稳定错误零写入）
+
+1. **fetch 检查**：`git fetch` 后比对 delta 触达目标文档在 origin 的 blob——更新则阻塞提示先 pull；fetch 失败（离线 / 非 git 仓库）降级为警告。
+2. **编号落盘定稿**：按 3.1.2。
+3. **撞号防御**：定稿后仍冲突（防御路径）fail-closed。
+
+#### 3.3 同文档冲突（相关模块少数场景）
+
+- **merge 前发现**（fetch 检查阻塞 → pull → merge）：delta 锚在他人改写小节后失效，`delta_section_anchor_unresolvable` 拒绝并附「目标文档在 origin 有新版本、§X 被改动」上下文——**基于新 view 重写该 delta 再 merge 是正常日常工作，不是事故**。
+- **merge 后发现**（git 文本冲突）：恢复路径 =「`git checkout` 该主文档至 origin 版 → 完成 pull → 重放 `openlogos merge`（幂等）→ 锚失效则重写 delta 再重放」。**禁止**在 git 冲突标记里手工缝合章节。
+- **语义红线**：自动语义合并（机器融合两版章节意图）明确不做——语义取舍由人重写 delta 时决定；机器只保证「不产生静默错误合并」。
+
+#### 3.4 logos-project.yaml 和解
+
+- counter 行：已删除写回（3.1.1），无数字冲突面；
+- `modules[]` / `features[]` / `scenarios[]` 同位置插入的 git 冲突：人工保两侧（git 常规合并语义）；
+- `resource_index` / `baseline_index`：不作为冲突对象——收敛时整体重建（`openlogos index` 等效）。
+
+#### 3.5 分工惯例（团队约定）
+
+1. 按模块边界认领工作（`openlogos module add` 登记），不同模块文档天然按 `<module>-` 前缀隔离；
+2. push 前必做：`git pull --rebase` + `openlogos sync` 收敛（重排 + index 重建）；
+3. 编号冲突后到者重排（收敛自动执行）；双方均已推送的同号属流程违例，后到者开 fix 提案重排，不做自动改写；
+4. 同 slug 极端撞名人工更名。
+
+### 4. 兼容与降级
+
+全部为向后兼容增量：固定条目幂等追加、旧 counter 兼容读取、新增 JSON 字段 additive、重排只作用于本人未推送工件。降级旧版 CLI 时新固定条目无害、guard / config 无格式变更。
