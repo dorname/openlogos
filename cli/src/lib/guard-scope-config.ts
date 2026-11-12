@@ -7,6 +7,7 @@
  * CLI 读取时对非法条目以退出码 1 报告（guard 判定时跳过并警告，不扩大豁免）。
  */
 import { readFileSync } from 'node:fs';
+import { MANAGED_FIXED_ENTRIES } from './gitignore-managed-block.js';
 
 export const GUARD_CONFIG_REL = 'logos/logos.config.json';
 export const GUARD_RUNTIME_REL = 'logos/.openlogos-runtime';
@@ -85,12 +86,17 @@ export function ignorePatternInvalidReason(pattern: string): InvalidReason | nul
   return null;
 }
 
-/** 固定运行时条目的各种书写（`logos/.openlogos-runtime`、`/logos/.openlogos-runtime/` 等）。 */
+/** 固定条目（托管区块）的各种书写变体匹配；multi-user-collaboration 起固定条目集 = runtime / guard / .worktrees。 */
 export function isRuntimeIgnoreEntry(pattern: string): boolean {
   let p = pattern.trim();
   while (p.startsWith('/')) p = p.slice(1);
   while (p.endsWith('/')) p = p.slice(0, -1);
-  return p === GUARD_RUNTIME_REL;
+  return MANAGED_FIXED_ENTRIES.some(entry => {
+    let e = entry;
+    while (e.startsWith('/')) e = e.slice(1);
+    while (e.endsWith('/')) e = e.slice(0, -1);
+    return p === e;
+  });
 }
 
 export type GuardConfigError =

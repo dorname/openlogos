@@ -25,7 +25,7 @@
 | ID | 描述 | 覆盖 Steps | 前置条件 | 操作序列 | 预期结果 |
 |----|------|-----------|----------|----------|----------|
 | ST-S45-01 | 双 clone 撞号端到端 | S45 Step 1→5 | cloneA/cloneB 同源 bare 仓库；两边各起一个含新场景的提案 | ① A：merge→push；② B：merge（同基线定稿同号）；③ B：`openlogos sync`（按提示 pull --rebase）→ 重排 → index 重建；④ B：push | ① A 落盘 `core-S44-a`；② B 本地落盘 `pay-S44-b`；③ 后 B 工件变 `pay-S45-b` 且输出 diff 清单、`core-S44-a` 不变；④ push 无冲突、无 counter 行冲突（yaml 无写回） |
-| ST-S45-02 | 同文档冲突恢复重放端到端 | S45 Step 6、EX-45.4 | A 与 B 的 delta 触达同一主文档同一节；A 先 push 且改了节标题 | ① B：merge（旧 view 成功）；② B：pull → git 冲突；③ B：`git checkout` 该文档至 origin 版完成 pull；④ B：重放 `openlogos merge` → 锚失效报错（含 origin 上下文）；⑤ B：基于新 view 重写 delta 再重放 | ④ 稳定错误指引重写；⑤ 落盘成功且基于新 view；全程未手工缝合冲突标记 |
+| ST-S45-02 | 同文档冲突恢复重放端到端 | S45 Step 6、EX-45.4 | A 与 B 的 delta 触达同一主文档同一节；A 先 push 且改了节标题；B 尚未 merge | ① B：pull（工作区干净）；② B：merge → 旧锚失效（含 origin 上下文与恢复指引）；③ B：基于新 view 重写 delta（新锚）再 merge | ② 稳定错误指引重写；③ 落盘成功且基于新 view；全程未手工缝合冲突标记。**已 merge 提案的主文档漂移由 MERGE_AMEND_DRIFT 接管（EX-9.40），不在本用例路径** |
 | ST-S45-03 | 离线收敛端到端 | EX-45.3 | 无远端访问（bare 路径移除） | ① B：`openlogos sync` | 本地重排与 index 重建照常；fetch 相关仅警告；exit 0 |
 
 #### 三、测试数据与断言要求

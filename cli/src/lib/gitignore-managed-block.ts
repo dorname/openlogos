@@ -17,8 +17,16 @@ import { join } from 'node:path';
 export const MANAGED_START = '# >>> openlogos managed >>>';
 export const MANAGED_END = '# <<< openlogos managed <<<';
 export const MANAGED_NOTE = '# 由 openlogos 维护，请用 `openlogos ignore` 修改；区块外内容不会被改动';
-/** 托管区块唯一固定条目：guard 自有状态目录。 */
+/** 托管区块固定条目（multi-user-collaboration / S45 状态分层）：guard 自有状态目录 + 工作目录锁 + worktree 会话目录。 */
 export const MANAGED_RUNTIME_ENTRY = 'logos/.openlogos-runtime/';
+export const MANAGED_GUARD_ENTRY = 'logos/.openlogos-guard';
+export const MANAGED_WORKTREE_ENTRY = '.worktrees/';
+/** 固定条目全集：渲染恒含、ignore remove 恒拒；顺序稳定（spec/change-management.md §多人协作 1）。 */
+export const MANAGED_FIXED_ENTRIES: readonly string[] = [
+  MANAGED_RUNTIME_ENTRY,
+  MANAGED_GUARD_ENTRY,
+  MANAGED_WORKTREE_ENTRY,
+];
 
 export interface ManagedBlockCorruption {
   /** 机读原因 */
@@ -116,8 +124,8 @@ export function locateManagedBlock(buf: Buffer | null): ManagedBlockLocation {
 
 /** 渲染区块本体（不含末尾行尾符）；条目中与固定条目重复者不重复输出。 */
 export function renderManagedBlockBody(entries: readonly string[], eol: '\r\n' | '\n'): string {
-  const seen = new Set<string>([MANAGED_RUNTIME_ENTRY]);
-  const lines = [MANAGED_START, MANAGED_NOTE, MANAGED_RUNTIME_ENTRY];
+  const seen = new Set<string>(MANAGED_FIXED_ENTRIES);
+  const lines = [MANAGED_START, MANAGED_NOTE, ...MANAGED_FIXED_ENTRIES];
   for (const e of entries) {
     if (seen.has(e)) continue;
     seen.add(e);

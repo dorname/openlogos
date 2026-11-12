@@ -17,7 +17,7 @@ import {
   computeSuggestions, detectStackCandidates, formatIgnoreAddCommand, isAcceptAnswer, planIgnoreSuggestions,
 } from '../src/lib/ignore-suggest.js';
 import { defaultScopeIo, type ScopeExecResult } from '../src/commands/scope.js';
-import { MANAGED_END, MANAGED_NOTE, MANAGED_RUNTIME_ENTRY, MANAGED_START } from '../src/lib/gitignore-managed-block.js';
+import { MANAGED_END, MANAGED_FIXED_ENTRIES, MANAGED_NOTE, MANAGED_RUNTIME_ENTRY, MANAGED_START } from '../src/lib/gitignore-managed-block.js';
 import { CLAUDE_POST_CHECK_COMMAND, CLAUDE_STOP_CHECK_COMMAND } from '../src/commands/init.js';
 import { CURSOR_ENGINE_REL_FILE, CURSOR_HOOK_EVENTS } from '../src/lib/cursor-adapter.js';
 import { captureConsole, mockCwd, mockProcessExit } from './helpers.js';
@@ -97,7 +97,7 @@ const gi = (root: string) => readFileSync(join(root, '.gitignore'));
 const sha = (p: string) => createHash('sha256').update(readFileSync(p)).digest('hex');
 
 function expectedBlock(entries: string[], eol = '\n'): string {
-  return [MANAGED_START, MANAGED_NOTE, MANAGED_RUNTIME_ENTRY, ...entries, MANAGED_END].join(eol);
+  return [MANAGED_START, MANAGED_NOTE, ...MANAGED_FIXED_ENTRIES, ...entries, MANAGED_END].join(eol);
 }
 
 /* ═════════════════════════════ S01 init ═════════════════════════════ */
@@ -218,7 +218,7 @@ describe('S01 技术栈建议忽略（init）', () => {
     const out = await inProcess(root, () => init('demo', { locale: 'zh', aiTool: 'claude-code' }));
     expect(out.exited).toBeNull();
     expect('guard' in readConfig(root)).toBe(false);
-    expect(managedEntries(gi(root).toString('utf-8'))).toEqual([MANAGED_RUNTIME_ENTRY]);
+    expect(managedEntries(gi(root).toString('utf-8'))).toEqual([...MANAGED_FIXED_ENTRIES]);
     expect(out.logs.join('\n')).toContain('已跳过。之后可运行：openlogos ignore add node_modules/ dist/ build/ coverage/');
     // en 文案同口径
     const en = tmp();
@@ -239,7 +239,8 @@ describe('S01 技术栈建议忽略（init）', () => {
     expect(o1.exited).toBeNull();
     expect(gi(r1).toString('utf-8')).toBe(`${expectedBlock([])}\n`);
     expect(o1.logs).toContain('  ✓ 已在 .gitignore 托管区块写入 logos/.openlogos-runtime/（OpenLogos 运行时文件）');
-    expect(gi(r1).toString('utf-8')).not.toContain('logos/.openlogos-guard');
+    // multi-user-collaboration（S40 协作扩展）：guard 现为托管区块固定条目，必须写入（原反向断言合法演进）
+    expect(gi(r1).toString('utf-8')).toContain('logos/.openlogos-guard');
 
     // ② 已有用户内容（CRLF）→ 末尾追加、前置空行、区块用 CRLF、区块外字节不变
     const r2 = tmp();
@@ -259,7 +260,7 @@ describe('S01 技术栈建议忽略（init）', () => {
     const o3 = await inProcess(r3, () => init('demo', { locale: 'zh', aiTool: 'claude-code' }));
     expect(prompts.some(p => p.includes('[Y/n]'))).toBe(false);
     expect('guard' in readConfig(r3)).toBe(false);
-    expect(managedEntries(gi(r3).toString('utf-8'))).toEqual([MANAGED_RUNTIME_ENTRY]);
+    expect(managedEntries(gi(r3).toString('utf-8'))).toEqual([...MANAGED_FIXED_ENTRIES]);
     expect(o3.logs).toContain('  ✓ 已在 .gitignore 托管区块写入 logos/.openlogos-runtime/（OpenLogos 运行时文件）');
 
     // ④ 两个起始标记 / 有起无止 → exit 1，项目内零写入
@@ -289,7 +290,7 @@ describe('S01 技术栈建议忽略（init）', () => {
     expect(out.exited).toBeNull();
     expect(prompts.some(p => p.includes('[Y/n]'))).toBe(false);
     expect('guard' in readConfig(root)).toBe(false);
-    expect(managedEntries(gi(root).toString('utf-8'))).toEqual([MANAGED_RUNTIME_ENTRY]);
+    expect(managedEntries(gi(root).toString('utf-8'))).toEqual([...MANAGED_FIXED_ENTRIES]);
     const text = out.logs.join('\n');
     for (const e of NODE) expect(out.logs).toContain(`  ${e}`);
     expect(text).toContain('非交互环境，未写入建议忽略条目。如需加入：openlogos ignore add node_modules/ dist/ build/ coverage/');
@@ -326,7 +327,7 @@ describe('S01 技术栈建议忽略（init）', () => {
     const r2 = runCliPty(['init', '--locale', 'zh', '--ai-tool', 'claude-code'], rej, [['[Y/n]', 'n']]);
     expect(r2.status, r2.output).toBe(0);
     expect('guard' in readConfig(rej)).toBe(false);
-    expect(managedEntries(gi(rej).toString('utf-8'))).toEqual([MANAGED_RUNTIME_ENTRY]);
+    expect(managedEntries(gi(rej).toString('utf-8'))).toEqual([...MANAGED_FIXED_ENTRIES]);
     expect(isIgnored(rej, 'dist/x')).toBe(false);
     expect(gi(rej).subarray(0, original.length).equals(original)).toBe(true);
   });
@@ -343,7 +344,7 @@ describe('S01 技术栈建议忽略（init）', () => {
     const r = runCli(['init', '--locale', 'zh', '--ai-tool', 'claude-code'], ni);
     expect(r.status, r.stderr).toBe(0);
     expect('guard' in readConfig(ni)).toBe(false);
-    expect(managedEntries(gi(ni).toString('utf-8'))).toEqual([MANAGED_RUNTIME_ENTRY]);
+    expect(managedEntries(gi(ni).toString('utf-8'))).toEqual([...MANAGED_FIXED_ENTRIES]);
     const m = /如需加入：(openlogos ignore add .+)$/m.exec(r.stdout);
     expect(m, r.stdout).not.toBeNull();
     const cmd = m![1];
@@ -440,7 +441,7 @@ describe('S20 技术栈建议忽略（adopt）', () => {
     expect(o2.exited).toBeNull();
     expect(prompts.some(p => p.includes('[Y/n]'))).toBe(false);
     expect('guard' in readConfig(all)).toBe(false);
-    expect(managedEntries(gi(all).toString('utf-8'))).toEqual([MANAGED_RUNTIME_ENTRY]);
+    expect(managedEntries(gi(all).toString('utf-8'))).toEqual([...MANAGED_FIXED_ENTRIES]);
   });
 
   it('UT-S20-50: 接受 / 拒绝与区块外逐字节不变', async () => {
@@ -471,7 +472,7 @@ describe('S20 技术栈建议忽略（adopt）', () => {
     const o2 = await inProcess(rej, () => adopt(undefined, { locale: 'zh', aiTool: 'cursor' }));
     expect(o2.exited).toBeNull();
     expect('guard' in readConfig(rej)).toBe(false);
-    expect(managedEntries(gi(rej).toString('utf-8'))).toEqual([MANAGED_RUNTIME_ENTRY]);
+    expect(managedEntries(gi(rej).toString('utf-8'))).toEqual([...MANAGED_FIXED_ENTRIES]);
     expect(gi(rej).subarray(0, userBytes.length).equals(userBytes)).toBe(true);
     expect(o2.logs.join('\n')).toContain('openlogos ignore add node_modules/ build/ coverage/');
     // 已有完整区块：原地替换、不重复
@@ -543,7 +544,7 @@ describe('S20 技术栈建议忽略（adopt）', () => {
     expect('guard' in readConfig(ni)).toBe(false);
     expect(o2.logs).toContain('  dist/（含 3 个已跟踪文件）');
     expect(o2.logs.join('\n')).toContain('如需加入：openlogos ignore add dist/ build/ coverage/');
-    expect(managedEntries(gi(ni).toString('utf-8'))).toEqual([MANAGED_RUNTIME_ENTRY]);
+    expect(managedEntries(gi(ni).toString('utf-8'))).toEqual([...MANAGED_FIXED_ENTRIES]);
   });
 
   it('ST-S20-26: 真实 adopt 存量 Node 项目的建议忽略', () => {

@@ -11,6 +11,9 @@ exports[`golden-baseline: status/next JSON characterization > golden: initial é¡
   "current_phase": "phase.2",
   "lifecycle": "initial",
   "locale": "en",
+  "next_decision_id": 1,
+  "next_feature_id": 1,
+  "next_scenario_id": 1,
   "phases": [
     {
       "done": true,
@@ -203,6 +206,9 @@ exports[`golden-baseline: status/next JSON characterization > golden: initial-ad
       "suggestion": "Tell AI: "Help me draw S01 sequence diagram"",
     },
   ],
+  "next_decision_id": 1,
+  "next_feature_id": 1,
+  "next_scenario_id": 1,
   "phases": [
     {
       "done": false,
@@ -334,6 +340,9 @@ exports[`golden-baseline: status/next JSON characterization > golden: launched +
       "suggestion": "Run openlogos change <slug> to create a new change proposal",
     },
   ],
+  "next_decision_id": 1,
+  "next_feature_id": 1,
+  "next_scenario_id": 1,
   "phases": [
     {
       "done": false,
@@ -491,6 +500,9 @@ exports[`golden-baseline: status/next JSON characterization > golden: launched +
       "suggestion": "Run openlogos change <slug> to create a new change proposal",
     },
   ],
+  "next_decision_id": 1,
+  "next_feature_id": 1,
+  "next_scenario_id": 1,
   "phases": [
     {
       "done": false,
@@ -700,6 +712,9 @@ exports[`golden-baseline: status/next JSON characterization > golden: launched æ
       "suggestion": "Run openlogos change <slug> to create a new change proposal",
     },
   ],
+  "next_decision_id": 1,
+  "next_feature_id": 1,
+  "next_scenario_id": 1,
   "phases": [
     {
       "done": false,
@@ -850,6 +865,9 @@ exports[`golden-baseline: status/next JSON characterization > golden: launched æ
       "suggestion": "Run openlogos change <slug> to create a new change proposal",
     },
   ],
+  "next_decision_id": 1,
+  "next_feature_id": 1,
+  "next_scenario_id": 1,
   "phases": [
     {
       "done": false,
@@ -1017,6 +1035,9 @@ exports[`golden-baseline: status/next JSON characterization > golden: å…¨æ–° ini
   "current_phase": "phase.1",
   "lifecycle": "initial",
   "locale": "en",
+  "next_decision_id": 1,
+  "next_feature_id": 1,
+  "next_scenario_id": 1,
   "phases": [
     {
       "done": false,

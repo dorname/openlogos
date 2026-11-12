@@ -4,6 +4,7 @@ import { parse as parseYaml } from 'yaml';
 import { readLocale, t, proposalTemplate, tasksTemplate } from '../i18n.js';
 import { listProjectModuleIds, withRecoveredReadLocks } from '../lib/baseline-seed-txn.js';
 import { runGuardBoundary } from '../lib/guard-boundary.js';
+import { createWorktreeSession } from '../lib/worktree-session.js';
 
 interface ModuleEntry {
   id: string;
@@ -47,7 +48,7 @@ function resolveModule(root: string, moduleArg: string | undefined, locale: stri
   process.exit(1);
 }
 
-export function change(slug?: string, moduleArg?: string) {
+export function change(slug?: string, moduleArg?: string, opts?: { worktree?: boolean }) {
   const root = process.cwd();
   const configPath = join(root, 'logos', 'logos.config.json');
 
@@ -62,6 +63,21 @@ export function change(slug?: string, moduleArg?: string) {
     console.error('Usage: openlogos change <slug>');
     console.error('Example: openlogos change add-remember-me');
     process.exit(1);
+  }
+
+  // multi-user-collaboration（S44 / D16）：worktree 会话入口——主工作区 guard 与 changePath 不约束
+  // 新 worktree 会话（并行语义来自文件系统隔离，guard 单锁语义不变）。
+  if (opts?.worktree) {
+    const session = createWorktreeSession(root, slug);
+    if (!session.ok) {
+      console.error(`Error: [${session.errorCode}] ${session.message}`);
+      process.exit(1);
+    }
+    for (const step of session.steps) console.log(`  ✓ ${step}`);
+    console.log(`\n✓ worktree 会话已就绪：${session.worktreePath}（分支 ${session.branch}）`);
+    console.log(`  请从 ${session.worktreePath} 启动新会话，在该目录内推进提案 '${slug}' 的既有单提案全流程。`);
+    console.log('  verify 通过后将分支 merge-back 进集成分支，执行 openlogos sync 收敛（S45），随后删除分支与 worktree 并归档。');
+    return;
   }
 
   const changePath = join(root, 'logos', 'changes', slug);

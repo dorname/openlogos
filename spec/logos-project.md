@@ -236,6 +236,8 @@ deployment_gates:
 
 **使用规则**：取号 = 派生公式（同 `scenario_counter`）；`decision_counter` 同型（`next_decision_id` 暴露）。feature ID 项目全局唯一，严禁不同 module 从 F01 重号。**缺失默认**：counter 或 `next_id` 缺失时 `configured = 0`（派生值仍正确，不报错）。冲突消解见 `spec/change-management.md` §多人协作（落盘定稿 + 收敛重排；既有 `allocated = max(configured, max(existing)+1)` 公式被定稿机制吸收）。
 
+> **decision_counter 写回例外（实现校准）**：S38 的 merge-executor apply 在落盘决策记录时仍按既有公式持久化 `decision_counter.next_id`（其写回值恒等于派生值，属幂等下限维护，非权威状态；保留以维持 S38 既有用例零回归）。scenario / feature counter 无 CLI 写点（AI 维护惯例随之停止写回）。
+
 #### features
 
 数组，feature 分组注册表（可选）。

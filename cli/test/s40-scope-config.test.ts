@@ -14,14 +14,15 @@ import {
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { makeTempRoot } from './helpers.js';
+import { makeTempRoot, scaffoldProject } from './helpers.js';
 import { GUARD_SRC, REPO_ROOT, buildProject, callIsProtected, cleanEnv, git, loadGuardRegion } from './s09-guard-vcs-fixtures.js';
 import { chain, postToolUse } from './s09-guard-post-check-helpers.js';
 import { defaultScopeIo, runScopeCommand, type ScopeExecResult, type ScopeIo } from '../src/commands/scope.js';
 import {
   BUILTIN_EXEMPT, exemptEntryInvalidReason, exemptEntryMatches, parseExemptEntry,
 } from '../src/lib/guard-scope-config.js';
-import { MANAGED_END, MANAGED_NOTE, MANAGED_START } from '../src/lib/gitignore-managed-block.js';
+import { MANAGED_END, MANAGED_NOTE, MANAGED_START, MANAGED_FIXED_ENTRIES, renderManagedBlockBody, renderGitignoreWithManagedBlock } from '../src/lib/gitignore-managed-block.js';
+import { applyIgnoreBlock } from '../src/lib/ignore-suggest.js';
 
 const TIMEOUT = 120_000;
 const CLI = join(REPO_ROOT, 'cli', 'dist', 'index.js');
@@ -170,7 +171,7 @@ function gRepo(): string {
 }
 
 function managedBlock(lines: string[], eol = '\n'): string {
-  return [MANAGED_START, MANAGED_NOTE, 'logos/.openlogos-runtime/', ...lines, MANAGED_END].join(eol);
+  return [MANAGED_START, MANAGED_NOTE, ...MANAGED_FIXED_ENTRIES, ...lines, MANAGED_END].join(eol);
 }
 
 function noTempFiles(root: string): void {
@@ -1022,5 +1023,96 @@ describe('S40 ignore / exempt 与宿主审批 — 场景', () => {
       expect(after).toContain('README.md');
     }
     expect(workBytes()).toEqual(work0);
+  }, TIMEOUT);
+});
+
+describe('S40 协作固定条目扩展（multi-user-collaboration 切片1）', () => {
+  it('UT-S40-30: 固定条目集渲染恰为三条且区块外逐字节不变', () => {
+    expect(MANAGED_FIXED_ENTRIES).toEqual(['logos/.openlogos-runtime/', 'logos/.openlogos-guard', '.worktrees/']);
+    const body = renderManagedBlockBody(['dist/'], '\n');
+    expect(body.split('\n')).toEqual([
+      MANAGED_START, MANAGED_NOTE,
+      'logos/.openlogos-runtime/', 'logos/.openlogos-guard', '.worktrees/',
+      'dist/', MANAGED_END,
+    ]);
+    // 固定条目与用户条目重复时不重复输出
+    const dup = renderManagedBlockBody(['logos/.openlogos-guard', '.worktrees/'], '\n');
+    expect(dup.split('\n').filter(l => l === 'logos/.openlogos-guard')).toHaveLength(1);
+    expect(dup.split('\n').filter(l => l === '.worktrees/')).toHaveLength(1);
+    // 区块外逐字节不变（含 CRLF）
+    const pre = Buffer.from('# 用户注释\r\nnode_modules/\r\n', 'utf-8');
+    const rendered = renderGitignoreWithManagedBlock(pre, ['dist/']);
+    expect(rendered.ok).toBe(true);
+    if (rendered.ok) {
+      expect(rendered.next.subarray(0, pre.length).equals(pre)).toBe(true);
+      expect(rendered.next.toString('utf-8')).toContain('logos/.openlogos-guard\r\n');
+    }
+  });
+
+  it('UT-S40-31: 幂等重渲染字节不变（changed=false）', () => {
+    const first = renderGitignoreWithManagedBlock(Buffer.from('node_modules/\n', 'utf-8'), []);
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    const second = renderGitignoreWithManagedBlock(first.next, []);
+    expect(second.ok).toBe(true);
+    if (second.ok) {
+      expect(second.changed).toBe(false);
+      expect(second.next.equals(first.next)).toBe(true);
+    }
+    const third = renderGitignoreWithManagedBlock(first.next, []);
+    expect(third.ok && third.changed).toBe(false);
+  });
+
+  it('UT-S40-32: guard 已被跟踪时 applyIgnoreBlock 输出 untrack 指引且不自动改写索引', () => {
+    const root = trackedRepo({ 'logos/.openlogos-guard': '{"activeChange":"a"}\n' });
+    expect(lsFilesZ(root)).toContain('logos/.openlogos-guard');
+    const logs: string[] = [];
+    const ok = applyIgnoreBlock(root, 'zh', { stacks: [], git: true, suggestions: [], outcome: 'non-interactive' }, {
+      log: l => logs.push(l), warn: l => logs.push(l),
+    });
+    expect(ok).toBe(true);
+    const out = logs.join('\n');
+    expect(out).toContain('logos/.openlogos-guard');
+    expect(out).toContain('git --literal-pathspecs rm --cached');
+    // CLI 不自动改写索引：guard 仍被跟踪
+    expect(lsFilesZ(root)).toContain('logos/.openlogos-guard');
+    // 区块已含固定条目
+    expect(readFileSync(join(root, '.gitignore'), 'utf-8')).toContain('logos/.openlogos-guard');
+  });
+
+  it('UT-S40-33: 固定条目（guard / .worktrees/ 及书写变体）不可被 ignore remove 移除', () => {
+    const root = project({ gitignore: `${managedBlock([])}\n`, locale: 'zh' });
+    for (const v of ['logos/.openlogos-guard', '/logos/.openlogos-guard', '.worktrees/', '/.worktrees/', 'logos/.openlogos-runtime/']) {
+      const r = runScopeCommand('ignore', ['remove', v], root);
+      expect(r.exitCode, v).toBe(1);
+      expect(r.stderr, v).toContain('固定条目');
+    }
+    // 区块未被改写
+    expect(readFileSync(join(root, '.gitignore'), 'utf-8')).toBe(`${managedBlock([])}\n`);
+  });
+
+  it('ST-S40-16: sync 后固定条目在场且已跟踪 guard 有 untrack 指引（端到端）', () => {
+    const root = tempRoot();
+    scaffoldProject(root, { locale: 'zh' });
+    put(root, 'logos/.openlogos-guard', '{"activeChange":"a","module":"core"}\n');
+    gitInit(root);
+    commitAll(root);
+    expect(lsFilesZ(root)).toContain('logos/.openlogos-guard');
+
+    const r = runCli(root, ['sync']);
+    expect(r.exitCode, `sync stderr=${r.stderr}`).toBe(0);
+    const gitignore = readFileSync(join(root, '.gitignore'), 'utf-8');
+    for (const entry of ['logos/.openlogos-runtime/', 'logos/.openlogos-guard', '.worktrees/']) {
+      expect(gitignore).toContain(entry);
+    }
+    expect(r.stdout).toContain('git --literal-pathspecs rm --cached');
+    expect(r.stdout).toContain('logos/.openlogos-guard');
+    // 仍被跟踪（不自动改写索引）
+    expect(lsFilesZ(root)).toContain('logos/.openlogos-guard');
+    // 幂等：再次 sync 字节不变
+    const before = readFileSync(join(root, '.gitignore'));
+    const again = runCli(root, ['sync']);
+    expect(again.exitCode).toBe(0);
+    expect(readFileSync(join(root, '.gitignore')).equals(before)).toBe(true);
   }, TIMEOUT);
 });

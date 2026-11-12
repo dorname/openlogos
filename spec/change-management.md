@@ -948,6 +948,7 @@ failed/aborted 不产生规格提交；普通 fatal failed 无自动动作；rec
 
 - **merge 前发现**（fetch 检查阻塞 → pull → merge）：delta 锚在他人改写小节后失效，`delta_section_anchor_unresolvable` 拒绝并附「目标文档在 origin 有新版本、§X 被改动」上下文——**基于新 view 重写该 delta 再 merge 是正常日常工作，不是事故**。
 - **merge 后发现**（git 文本冲突）：恢复路径 =「`git checkout` 该主文档至 origin 版 → 完成 pull → 重放 `openlogos merge`（幂等）→ 锚失效则重写 delta 再重放」。**禁止**在 git 冲突标记里手工缝合章节。
+- **已 merge 提案的漂移边界（实现校准）**：上述恢复重放适用于**首次 merge 前**；已完成首次合并的提案，若上次合并后主文档被修改（与记录的合并后 sha256 不符），由既有 `MERGE_AMEND_DRIFT` 门 fail-closed 接管——不做三方合并、指引另立新提案承载修正（EX-9.40），恢复重放不越过该门。
 - **语义红线**：自动语义合并（机器融合两版章节意图）明确不做——语义取舍由人重写 delta 时决定；机器只保证「不产生静默错误合并」。
 
 #### 3.4 logos-project.yaml 和解

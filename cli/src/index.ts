@@ -308,7 +308,7 @@ async function main() {
         }
       }
       const moduleArg = moduleIdx !== -1 ? args[moduleIdx + 1] : undefined;
-      change(restArgs[0], moduleArg);
+      change(restArgs[0], moduleArg, { worktree: args.includes('--worktree') });
       break;
     }
     case 'slice': {

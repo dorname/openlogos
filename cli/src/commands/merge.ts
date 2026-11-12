@@ -5,6 +5,7 @@ import { resetCodeSection } from '../lib/proposal-lifecycle.js';
 // S35 前置重构②③⑤：段标记/模板骨架校验、delta 分类、模块归属解析改为共享判据打包调用（严禁第二份判据）。
 import { DELTA_TO_RESOURCE, validateMarkdownDelta, classifyProposalDeltas, resolveProposalModuleContext, DeltaScanUnreadableError, evaluateDeltaConservation, deltaTargetProjectPath, resolveModifiedSectionKeys, runChangeLint } from '../lib/change-lint.js';
 import { recoverBaselineClosureApply } from '../lib/baseline-apply.js';
+import { checkCollabFreshness, finalizeCollabIds, checkOriginFreshness } from '../lib/collab-preflight.js';
 import { deriveUiImpact, readUiUxDeclaration } from '../lib/ui-first.js';
 import { markAmendContext, mergeDirect, type MergeDirectHooks } from '../lib/merge-direct.js';
 import { describeMergeFailure, extractMergeFailureDiagnostics } from '../lib/merge-failure-report.js';
@@ -345,6 +346,21 @@ function admitOrExit(root: string, changePath: string, slug: string, json: boole
     for (const v of preflight.violations) {
       console.error(`  - [${v.code}] ${v.path}：${v.message}`);
       if (v.fix_hint) console.error(`      修复：${v.fix_hint}`);
+      // multi-user-collaboration（S45）：锚失效报错增强——origin 比对 + 恢复重放指引。
+      if (v.code === 'delta_section_anchor_unresolvable') {
+        const m = /deltas\/(.+)$/.exec(v.path);
+        const rel = m?.[1];
+        const target = rel
+          ? rel.startsWith('spec/') ? rel.slice('spec/'.length)
+            : rel.startsWith('decisions/') ? `logos/resources/decisions/${rel.slice('decisions/'.length)}`
+              : `logos/resources/${rel}`
+          : v.path;
+        const freshness = checkOriginFreshness(root, [target], undefined, { skipFetch: true });
+        if (freshness.status === 'stale') {
+          console.error(`      协作提示：目标文档 ${target} 在 origin 有新版本（该节可能已被他人改动）。`);
+        }
+        console.error('      恢复路径：基于新 view 重写该 delta 后重放 merge；若已发生 git 冲突，checkout 该主文档至 origin 版 → 完成 pull → 重放（幂等），禁止手工缝合冲突标记（spec/change-management.md §多人协作 3.3）。');
+      }
     }
     console.error(untouched);
     console.error('  自查命令：openlogos change-lint --slug ' + slug + '（其结论与本准入判定同源）');
@@ -433,6 +449,19 @@ export function merge(slug?: string, format: OutputFormat = 'text') {
     return;
   }
 
+  // multi-user-collaboration（S45 / D17）：merge preflight 协作三查——
+  // 第 1 查（准入前，只读）：fetch 陈旧 view 阻塞（离线降级警告）。
+  // 第 2/3 查（准入后、合成落盘前）：SXX/FXX 编号落盘定稿 + 撞号防御——
+  // 非法 envelope 必须先被 change-lint 原样拒绝，不得被定稿改写掩盖（UT-S39-77 同判据）。
+  const collabFresh = checkCollabFreshness(root, changePath);
+  if (!collabFresh.ok) {
+    console.error(`Error: [${collabFresh.errorCode}] ${collabFresh.message}`);
+    console.error('  拒绝 merge：未生成 MERGE_PROMPT、未写 SPEC_MERGED、counter 或 index。');
+    if (json) console.error(JSON.stringify(makeErrorEnvelope('merge', collabFresh.errorCode ?? 'COLLAB_PREFLIGHT_FAILED', collabFresh.message ?? '')));
+    process.exit(1);
+  }
+  for (const warning of collabFresh.warnings) out(`  ⚠️  ${warning}`);
+
   // S39 merge 纵深防御：任何 reset/UI commit/prompt/marker 写入之前，对已激活 on-touch 的提案
   // 重跑 change-lint 所消费的同一 ClosureEvaluator。legacy（无声明且 tasks 无模式）不得被 L9
   // §12.7 的 auto-reset 必须**先于**准入判定：提前填充的 [code] 正是本流程设计来自动自愈的状态
@@ -442,6 +471,17 @@ export function merge(slug?: string, format: OutputFormat = 'text') {
 
   // §2.51.2 / 架构 §四十一.6.1：merge 的准入判定**等于** change-lint 的完整结论。
   admitOrExit(root, changePath, slug, json);
+
+  // 第 2/3 查（准入后、合成落盘前）：编号落盘定稿 + 撞号防御。
+  const collabFinal = finalizeCollabIds(root, changePath);
+  if (!collabFinal.ok) {
+    console.error(`Error: [${collabFinal.errorCode}] ${collabFinal.message}`);
+    console.error('  拒绝 merge：未生成 MERGE_PROMPT、未写 SPEC_MERGED、counter 或 index。');
+    if (json) console.error(JSON.stringify(makeErrorEnvelope('merge', collabFinal.errorCode ?? 'COLLAB_PREFLIGHT_FAILED', collabFinal.message ?? '')));
+    process.exit(1);
+  }
+  for (const warning of collabFinal.warnings) out(`  ⚠️  ${warning}`);
+  for (const rename of collabFinal.renames) out(`  🔢 编号落盘定稿：${rename.fromId} → ${rename.toId}（已定稿）`);
 
   const deltasDir = join(changePath, 'deltas');
   let deltas: DeltaFile[];

@@ -4,6 +4,7 @@ import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { readLocale, t } from '../i18n.js';
 import { deploySpecs, deployAiToolAssets, ensureVerifyPreRunConfig, printVerifyPreRunBackfillResult, writeInstructionFiles } from './init.js';
 import { syncResourceIndex } from '../lib/sync-resource-index.js';
+import { runReconcile } from '../lib/reconcile-renumber.js';
 import { VERSION } from '../lib/json-output.js';
 import { migrateProjectLifecycle, migrateBaselineProvenance } from '../lib/migrate-lifecycle.js';
 import { withRecoveredReadLocks, listProjectModuleIds } from '../lib/baseline-seed-txn.js';
@@ -16,6 +17,8 @@ import { dirname } from 'node:path';
 import { ensureManagedGitattributes } from '../lib/gitattributes.js';
 import { formatCrlfRecoveryReport, recoverCrlfWorkspace } from '../lib/crlf-recovery.js';
 import { syncManagedGitignoreBlock } from '../lib/gitignore-sync.js';
+import { trackedHints, defaultScopeIo } from './scope.js';
+import { MANAGED_FIXED_ENTRIES } from '../lib/gitignore-managed-block.js';
 
 export function syncLogosProjectName(root: string, projectName: string) {
   const yamlPath = join(root, 'logos', 'logos-project.yaml');
@@ -157,6 +160,28 @@ export function sync() {
     console.log(`  ✓ ${t(locale, 'sync.scenariosModuleAdded', { count: String(scenariosUpdated) })}`);
   }
 
+  // ========== multi-user-collaboration（S45）：汇合收敛——同号异 slug 自动重排 ==========
+  // pull / merge-back 之后、push 之前执行：origin 可见编号冻结，仅重排本 clone 未推送工件；
+  // 文法外歧义 fail-closed（整体不落盘）；resource_index 由下方 syncResourceIndex 既有步骤重建。
+  const reconcile = runReconcile(root);
+  if (!reconcile.ok) {
+    console.error(`Error: ${reconcile.message}`);
+    for (const ref of reconcile.ambiguous) {
+      console.error(`  - ${ref.file}:${ref.line}：${ref.text}`);
+    }
+    process.exit(1);
+  }
+  for (const collision of reconcile.pushedCollisions) {
+    console.warn(`  ⚠️  同号防御报告：${collision}`);
+  }
+  for (const note of reconcile.notes) {
+    console.warn(`  ⚠️  ${note}`);
+  }
+  for (const rename of reconcile.renames) {
+    console.log(`  🔢 汇合重排：${rename.fromId} → ${rename.toId}`);
+    for (const file of rename.files) console.log(`      ${file}`);
+  }
+
   // ========== Step 2: 扫描并补录缺失的 resource_index 条目 ==========
   const indexResult = syncResourceIndex(root, locale);
   if (indexResult.added > 0) {
@@ -227,6 +252,11 @@ export function sync() {
   else if (gitignoreSync.status === 'failed') {
     for (const line of gitignoreSync.errors) console.error(line);
     gitignorePartial = gitignoreSync.partialLine;
+  }
+  // multi-user-collaboration（S45 / S40 协作扩展）：固定条目（guard、.worktrees/ 等）已被 git 跟按时
+  // 输出 untrack 指引——本地状态永不入库，CLI 不自动改写用户索引。
+  if (defaultScopeIo.exec('git', ['rev-parse', '--is-inside-work-tree'], root).status === 0) {
+    trackedHints({ out: line => console.log(line) }, locale, root, defaultScopeIo, [...MANAGED_FIXED_ENTRIES]);
   }
 
   // ========== proposal-ui-ux-first 切片1：GUI overlay 幂等对齐 + 缺 product_type 诊断 ==========

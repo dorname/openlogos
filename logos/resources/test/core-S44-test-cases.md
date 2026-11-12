@@ -27,7 +27,7 @@
 
 - worktree 断言一律以 `.worktrees/<slug>` 为项目根（cwd 切入后执行），不得用主工作区路径断言会话内行为；
 - 「零残留」= 主工作区 + git 分支列表 + `git worktree list` 三方与执行前一致（临时分支清理本身除外）；
-- config 复制断言逐字节相等（本地机器状态整体复制，不做字段级合并）。
+- config 复制断言按「复制源字段」（name / locale / description 与主 config 一致）——复制后 worktree 内 sync 的既有 backfill（documents / sourceRoots / verify 预运行配置）会规范化该文件，不属于复制源逐字断言之列；复制 ≠ 重建（不做字段级合并）。
 
 #### 四、覆盖度校验
 

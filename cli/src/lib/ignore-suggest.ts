@@ -14,7 +14,7 @@
  * 进程调用层与写盘入口沿用 `openlogos ignore` 的可注入 ScopeIo，便于测试设哨兵。
  */
 import type { Locale } from '../i18n.js';
-import { atomicWriteFile, locateManagedBlock, renderGitignoreWithManagedBlock, MANAGED_RUNTIME_ENTRY } from './gitignore-managed-block.js';
+import { atomicWriteFile, locateManagedBlock, renderGitignoreWithManagedBlock, MANAGED_RUNTIME_ENTRY, MANAGED_FIXED_ENTRIES } from './gitignore-managed-block.js';
 import { defaultScopeIo, shellQuote, trackedHints, type ScopeIo } from '../commands/scope.js';
 import { join } from 'node:path';
 
@@ -243,6 +243,11 @@ export function applyIgnoreBlock(
     }
   }
   if (!runtimePresent) opts.log(fmt(locale, M.runtime));
+
+  // multi-user-collaboration（S45 / S40 协作扩展）：固定条目已被 git 跟踪时输出 untrack 指引（仅 git 项目）。
+  if (plan.git) {
+    trackedHints({ out: opts.log }, locale, root, io, [...MANAGED_FIXED_ENTRIES]);
+  }
 
   const all = plan.suggestions.map(s => s.entry);
   if (plan.outcome === 'accepted') {

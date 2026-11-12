@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { Document, isMap, parse as parseYaml, parseDocument } from 'yaml';
 import { t, type Locale } from '../i18n.js';
@@ -80,6 +80,8 @@ export interface ProjectYamlDeploymentGate {
 export interface ProjectYamlData {
   modules?: ProjectYamlModule[];
   scenarios?: ProjectYamlScenario[];
+  /** multi-user-collaboration（S45）：可选全局场景计数器（兼容下限，取号以已落盘集合派生；AI 不再写回）。 */
+  scenario_counter?: ProjectYamlScenarioCounter;
   /** add-feature-model（S34）：可选 feature 分组注册表。 */
   features?: ProjectYamlFeature[];
   /** add-feature-model（S34）：可选全局 feature 计数器（AI 维护）。 */
@@ -89,6 +91,11 @@ export interface ProjectYamlData {
   deployment_gates?: Record<string, ProjectYamlDeploymentGate>;
   /** brownfield-adopter（S33）：provenance/覆盖率的派生索引（非权威），按 module 携 source_hash 供新鲜度对账。 */
   baseline_index?: Record<string, BaselineIndexEntry>;
+}
+
+/** multi-user-collaboration（S45）：scenario_counter 兼容下限（仅 next_id: number 合法；唯一事实源 = 已落盘集合）。 */
+export interface ProjectYamlScenarioCounter {
+  next_id?: number;
 }
 
 export interface ProjectYamlReadResult {
@@ -251,6 +258,16 @@ function normalizeFeatureCounter(raw: unknown): ProjectYamlFeatureCounter | unde
   return undefined;
 }
 
+/** multi-user-collaboration（S45）：解析 scenario_counter（仅 next_id: number 合法；兼容下限）。 */
+function normalizeScenarioCounter(raw: unknown): ProjectYamlScenarioCounter | undefined {
+  const record = asRecord(raw);
+  if (!record) return undefined;
+  if (typeof record.next_id === 'number') {
+    return { next_id: record.next_id };
+  }
+  return undefined;
+}
+
 /** decision-record-capability（S38）：解析 decision_counter（仅 next_id: number 合法；CLI 只读、不取号）。 */
 function normalizeDecisionCounter(raw: unknown): ProjectYamlDecisionCounter | undefined {
   const record = asRecord(raw);
@@ -299,6 +316,11 @@ function normalizeProjectYaml(raw: unknown): ProjectYamlData | null {
     : undefined;
   if (scenarios !== undefined) {
     data.scenarios = scenarios;
+  }
+
+  const scenarioCounter = normalizeScenarioCounter(record.scenario_counter);
+  if (scenarioCounter !== undefined) {
+    data.scenario_counter = scenarioCounter;
   }
 
   const features = Array.isArray(record.features)
@@ -513,4 +535,56 @@ export function readProjectYaml(root: string): ProjectYamlReadResult {
       ),
     };
   }
+}
+
+/* ─────────────── multi-user-collaboration（S45）：派生 next-id ─────────────── */
+
+/** 派生 next-id 输出（status --format json 顶层 additive 字段；spec/logos-project.md counter 派生化）。 */
+export interface DerivedNextIds {
+  next_scenario_id: number;
+  next_feature_id: number;
+  next_decision_id: number;
+}
+
+function maxOf(values: number[]): number {
+  return values.length > 0 ? Math.max(...values) : 0;
+}
+
+/** `S44` / `F09` / `D16` 形态 ID 的数字部分；不匹配返回 null。 */
+function idNumber(id: string, prefix: 'S' | 'F' | 'D'): number | null {
+  const m = new RegExp(`^${prefix}(\\d+)$`, 'i').exec(id.trim());
+  return m ? Number(m[1]) : null;
+}
+
+/**
+ * 派生取号（S45 / D17）：`next = max(configured ?? 0, max已落盘 + 1)`，与 DXX 分配公式同型。
+ * 已落盘集合来源：scenarios[] / features[]（yaml 单一真相）与 `logos/resources/decisions/` 文件名
+ * （`<module>-DXX-<slug>.md`）。yaml 缺失 / 目录缺失按空集处理，不报错。
+ */
+export function deriveNextIds(root: string, data: ProjectYamlData | null | undefined): DerivedNextIds {
+  const configuredScenario = data?.scenario_counter?.next_id ?? 0;
+  const configuredFeature = data?.feature_counter?.next_id ?? 0;
+  const configuredDecision = data?.decision_counter?.next_id ?? 0;
+
+  const landedScenarios = (data?.scenarios ?? [])
+    .map(s => idNumber(s.id, 'S'))
+    .filter((n): n is number => n !== null);
+  const landedFeatures = (data?.features ?? [])
+    .map(f => idNumber(f.id, 'F'))
+    .filter((n): n is number => n !== null);
+
+  const landedDecisions: number[] = [];
+  const decisionsDir = join(root, 'logos', 'resources', 'decisions');
+  if (existsSync(decisionsDir)) {
+    for (const name of readdirSync(decisionsDir)) {
+      const m = /-D(\d+)-[^/\\]+\.md$/i.exec(name);
+      if (m) landedDecisions.push(Number(m[1]));
+    }
+  }
+
+  return {
+    next_scenario_id: Math.max(configuredScenario, maxOf(landedScenarios) + 1),
+    next_feature_id: Math.max(configuredFeature, maxOf(landedFeatures) + 1),
+    next_decision_id: Math.max(configuredDecision, maxOf(landedDecisions) + 1),
+  };
 }

@@ -14,7 +14,7 @@ import { join } from 'node:path';
 import { init, createAgentsMd, generatePolicyMdc, CLAUDE_POST_CHECK_COMMAND, CLAUDE_STOP_CHECK_COMMAND } from '../src/commands/init.js';
 import { sync } from '../src/commands/sync.js';
 import { runScopeCommand } from '../src/commands/scope.js';
-import { MANAGED_END, MANAGED_NOTE, MANAGED_RUNTIME_ENTRY, MANAGED_START } from '../src/lib/gitignore-managed-block.js';
+import { MANAGED_END, MANAGED_FIXED_ENTRIES, MANAGED_NOTE, MANAGED_RUNTIME_ENTRY, MANAGED_START } from '../src/lib/gitignore-managed-block.js';
 import { CURSOR_ENGINE_REL_FILE, CURSOR_GUARD_STRENGTH_NOTICE_ZH, CURSOR_HOOK_EVENTS } from '../src/lib/cursor-adapter.js';
 import { captureConsole, mockCwd, mockProcessExit } from './helpers.js';
 import {
@@ -37,7 +37,7 @@ function tmp(): string {
   return root;
 }
 
-const block = (entries: string[], eol = '\n') => [MANAGED_START, MANAGED_NOTE, MANAGED_RUNTIME_ENTRY, ...entries, MANAGED_END].join(eol);
+const block = (entries: string[], eol = '\n') => [MANAGED_START, MANAGED_NOTE, ...MANAGED_FIXED_ENTRIES, ...entries, MANAGED_END].join(eol);
 const sha = (p: string) => createHash('sha256').update(readFileSync(p)).digest('hex');
 const gi = (root: string) => readFileSync(join(root, '.gitignore'));
 const configPath = (root: string) => join(root, 'logos', 'logos.config.json');
@@ -173,7 +173,7 @@ describe('S08 sync 重渲染 .gitignore 托管区块', () => {
       writeFileSync(join(root, '.gitignore'), 'a/\n');
       const fixed = runSync(root);
       expect(fixed.exit, c.name).toBeNull();
-      expect(managedEntries(gi(root).toString('utf-8'))).toEqual(c.guard !== undefined ? [MANAGED_RUNTIME_ENTRY, 'dist/'] : [MANAGED_RUNTIME_ENTRY]);
+      expect(managedEntries(gi(root).toString('utf-8'))).toEqual(c.guard !== undefined ? [...MANAGED_FIXED_ENTRIES, 'dist/'] : [...MANAGED_FIXED_ENTRIES]);
     }
   });
 
@@ -326,7 +326,7 @@ describe('S08 sync 重渲染 .gitignore 托管区块', () => {
     expect(`${s1.stdout}${s1.stderr}`).toContain(CURSOR_GUARD_STRENGTH_NOTICE_ZH);
     expect(CURSOR_GUARD_STRENGTH_NOTICE_ZH).toContain('afterShellExecution post-check');
     expect([hash(after.hooks.PostToolUse[0]), hash(after.hooks.Stop[0]), hash(cursorHooks.hooks.afterShellExecution[0])]).toEqual(userHashes);
-    expect(managedEntries(readFileSync(join(proj, '.gitignore'), 'utf-8'))).toEqual([MANAGED_RUNTIME_ENTRY]);
+    expect(managedEntries(readFileSync(join(proj, '.gitignore'), 'utf-8'))).toEqual([...MANAGED_FIXED_ENTRIES]);
     // ④ 再次 sync：两份配置、引擎与 guard-check 字节零变化
     const snap = [settingsPath, hooksPath, claudeEngine, cursorEngine, guardCheck].map(sha);
     const s2 = cand(['sync'], proj);

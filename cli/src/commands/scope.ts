@@ -16,7 +16,7 @@ import { join } from 'node:path';
 import { readLocale, type Locale } from '../i18n.js';
 import { makeEnvelope, makeErrorEnvelope } from '../lib/json-output.js';
 import {
-  atomicWriteFile, defaultManagedWriteIo, renderGitignoreWithManagedBlock, MANAGED_RUNTIME_ENTRY,
+  atomicWriteFile, defaultManagedWriteIo, renderGitignoreWithManagedBlock,
   type ManagedWriteIo,
 } from '../lib/gitignore-managed-block.js';
 import {
@@ -71,8 +71,8 @@ const M = {
   present: { en: '  · Already present: {v}', zh: '  · 已存在：{v}' },
   notFound: { en: '  · Not found: {v}', zh: '  · 不存在：{v}' },
   runtimeFixed: {
-    en: `  · ${MANAGED_RUNTIME_ENTRY} is always ignored by the managed block`,
-    zh: `  · ${MANAGED_RUNTIME_ENTRY} 已固定在托管区块中`,
+    en: '  · {v} is always ignored by the managed block',
+    zh: '  · {v} 已固定在托管区块中',
   },
   configWritten: { en: '  ✓ logos/logos.config.json updated', zh: '  ✓ 已更新 logos/logos.config.json' },
   blockWritten: { en: '  ✓ .gitignore managed block updated', zh: '  ✓ 已更新 .gitignore 托管区块' },
@@ -122,8 +122,8 @@ const M = {
   errBadPattern: { en: 'Error: Invalid ignore pattern "{v}": {r}.', zh: 'Error: 忽略模式 "{v}" 非法：{r}。' },
   errBadPath: { en: 'Error: Invalid exempt path "{v}": {r}.', zh: 'Error: 免立案路径 "{v}" 非法：{r}。' },
   errRuntimeRemove: {
-    en: `Error: ${MANAGED_RUNTIME_ENTRY} is a fixed entry of the managed block and cannot be removed.`,
-    zh: `Error: ${MANAGED_RUNTIME_ENTRY} 是托管区块的固定条目，不能移除。`,
+    en: 'Error: {v} is a fixed entry of the managed block and cannot be removed.',
+    zh: 'Error: {v} 是托管区块的固定条目，不能移除。',
   },
   errBlockCorrupt: {
     en: 'Error: The openlogos managed block in .gitignore is corrupted ({d}). Fix it manually; no files were changed.',
@@ -294,7 +294,7 @@ export function runScopeCommand(kind: ScopeKind, argv: string[], root: string, i
   const invalid: string[] = [];
   for (const v of values) {
     if (kind === 'ignore') {
-      if (action === 'remove' && isRuntimeIgnoreEntry(v)) { invalid.push(fmt(locale, M.errRuntimeRemove)); continue; }
+      if (action === 'remove' && isRuntimeIgnoreEntry(v)) { invalid.push(fmt(locale, M.errRuntimeRemove, { v })); continue; }
       const why: InvalidReason | null = ignorePatternInvalidReason(v);
       if (why) invalid.push(fmt(locale, M.errBadPattern, { v, r: why[locale] }));
     } else {
@@ -336,7 +336,7 @@ function runIgnoreWrite(
   const added: string[] = [];
   for (const v of values) {
     if (action === 'add') {
-      if (isRuntimeIgnoreEntry(v)) { o.out(fmt(locale, M.runtimeFixed)); continue; }
+      if (isRuntimeIgnoreEntry(v)) { o.out(fmt(locale, M.runtimeFixed, { v })); continue; }
       if (next.includes(v)) { o.out(fmt(locale, M.present, { v })); continue; }
       next.push(v);
       added.push(v);

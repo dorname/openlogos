@@ -246,6 +246,9 @@
           "source_roots": null,
           "active_change": "feat",
           "proposal_step": "delta-writing",
+          "next_scenario_id": 1,
+          "next_feature_id": 1,
+          "next_decision_id": 1,
           "yaml_diagnostics": null
         }
       },
@@ -547,6 +550,9 @@
           "source_roots": null,
           "active_change": "feat",
           "proposal_step": "coding",
+          "next_scenario_id": 1,
+          "next_feature_id": 1,
+          "next_decision_id": 1,
           "yaml_diagnostics": null
         }
       },
@@ -822,6 +828,9 @@
           "source_roots": null,
           "active_change": "feat",
           "proposal_step": "ready-to-merge",
+          "next_scenario_id": 1,
+          "next_feature_id": 1,
+          "next_decision_id": 1,
           "yaml_diagnostics": null
         }
       },
@@ -1097,6 +1106,9 @@
           "source_roots": null,
           "active_change": "feat",
           "proposal_step": "ready-to-delta",
+          "next_scenario_id": 1,
+          "next_feature_id": 1,
+          "next_decision_id": 1,
           "yaml_diagnostics": null
         }
       },
@@ -1283,6 +1295,9 @@
           "source_roots": null,
           "active_change": null,
           "proposal_step": null,
+          "next_scenario_id": 1,
+          "next_feature_id": 1,
+          "next_decision_id": 1,
           "yaml_diagnostics": null
         }
       },

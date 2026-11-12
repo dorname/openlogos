@@ -315,7 +315,10 @@
             "source_roots": null,
             "active_change": "ship-it",
             "proposal_step": "smoke-passed",
-            "yaml_diagnostics": null
+            "yaml_diagnostics": null,
+            "next_scenario_id": 1,
+            "next_feature_id": 1,
+            "next_decision_id": 1
           }
         },
         "stderr": null
@@ -799,7 +802,10 @@
             "environment_ledger": {
               "path": "logos/.openlogos-runtime/deployments.jsonl",
               "corrupt_lines": 0
-            }
+            },
+            "next_scenario_id": 1,
+            "next_feature_id": 1,
+            "next_decision_id": 1
           }
         },
         "stderr": null

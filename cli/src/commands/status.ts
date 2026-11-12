@@ -13,7 +13,7 @@ import { listFiles } from '../lib/list-files.js';
 import { makeEnvelope, makeErrorEnvelope } from '../lib/json-output.js';
 import { collectStatusEnvironmentFields } from '../lib/environments.js';
 import type { OutputFormat } from '../lib/json-output.js';
-import { readProjectYaml, isAdoptedBootstrap, formatYamlDegradedLines } from '../lib/project-yaml.js';
+import { readProjectYaml, isAdoptedBootstrap, formatYamlDegradedLines, deriveNextIds } from '../lib/project-yaml.js';
 import type { BootstrapMode, YamlDiagnostics, ProjectYamlScenario } from '../lib/project-yaml.js';
 import { buildModuleFeatures, formatFeaturesText } from '../lib/feature-grouping.js';
 import type { FeatureGroupItem } from '../lib/feature-grouping.js';
@@ -295,6 +295,10 @@ export interface StatusData {
   source_roots: { src: string[]; test: string[] } | null;
   active_change: string | null;
   proposal_step: ProposalStep | null;
+  // multi-user-collaboration（S45）：counter 派生化——派生 next-id（additive；恒出现）。
+  next_scenario_id: number;
+  next_feature_id: number;
+  next_decision_id: number;
   reason?: ProposalBlockReason;
   yaml_diagnostics: YamlDiagnostics | null;
   // M2 切片 1a：legacy 无 modules[] 项目的 overlay 顶层回退（有 modules[] 时挂 modules[] 下）
@@ -1046,6 +1050,8 @@ function collectStatusDataLocked(root: string, filterModuleId?: string, cmdEval?
 
   const projectYaml = readProjectYaml(root);
   yamlDiagnostics = projectYaml.yaml_diagnostics;
+  // multi-user-collaboration（S45）：counter 派生化——status 暴露派生 next-id（唯一事实源 = 已落盘集合）。
+  const derivedNextIds = deriveNextIds(root, projectYaml.data);
   if (Array.isArray(projectYaml.data?.modules)) {
     rawModules = projectYaml.data.modules.map(m => ({
       id: m.id,
@@ -1314,6 +1320,10 @@ function collectStatusDataLocked(root: string, filterModuleId?: string, cmdEval?
     source_roots: sourceRoots,
     active_change: activeChange,
     proposal_step: proposalStep,
+    // multi-user-collaboration（S45）：派生 next-id（additive；configured 仅作兼容下限）。
+    next_scenario_id: derivedNextIds.next_scenario_id,
+    next_feature_id: derivedNextIds.next_feature_id,
+    next_decision_id: derivedNextIds.next_decision_id,
     ...(topReason ? { reason: topReason } : {}),
     yaml_diagnostics: yamlDiagnostics,
   };
