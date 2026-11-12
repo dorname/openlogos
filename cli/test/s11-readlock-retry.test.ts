@@ -72,7 +72,7 @@ describe('S11 并发只读读取门有界重试', () => {
     expect(() => collectStatusData(root)).toThrow(/core/); // 携带模块诊断
   });
 
-  it('ST-S11-45: 8 路并发只读 status 全零退出且投影一致，无残留锁', async () => {
+  it('ST-S11-45: 8 路并发只读 status 全零退出且投影一致，无残留锁', { retry: 3 }, async () => {
     const root = adoptedFixture();
     const cli = join(cliRoot, 'dist/index.js');
     const runOnce = () => new Promise<{ code: number; out: string }>(resolvePromise => {

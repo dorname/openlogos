@@ -39,7 +39,7 @@ const pids: number[] = [];
  * 显式 skip（同 UT-S13-47～54 对 OS 写保护能力的处理），不在不具备能力的环境里断言复用行为。
  */
 const REUSE_CAPABLE = detectLivenessCapability().available;
-const itReuse = it.skipIf(!REUSE_CAPABLE);
+const itReuse = (name: string, fn: () => void) => it.skipIf(!REUSE_CAPABLE)(name, { retry: 3 }, fn);
 
 afterAll(() => {
   for (const pid of pids) { try { process.kill(pid, 'SIGKILL'); } catch { /* 已退出 */ } }

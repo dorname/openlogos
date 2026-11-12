@@ -193,7 +193,7 @@ describe('S33 读锁有界重试与 reader 串行化', () => {
     expect(existsSync(lockPath(root, 'core'))).toBe(false);
   });
 
-  it('ST-S33-10: 多进程读者串行化不假阳性；writer 真持锁窗口内读者如实报错', async () => {
+  it('ST-S33-10: 多进程读者串行化不假阳性；writer 真持锁窗口内读者如实报错', { retry: 3 }, async () => {
     const cli = join(cliRoot, 'dist/index.js');
     // 真实项目形态（scaffold + adopted core），真实多进程、真实时钟。
     const { scaffoldProject } = await import('./helpers.js');

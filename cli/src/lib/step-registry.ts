@@ -26,6 +26,8 @@ export const CONTRACT_VERSION_WITH_FEATURES = '1.1.0';
 export const CONTRACT_VERSION_WITH_CLARIFICATION = '1.2.0';
 export const CONTRACT_VERSION_WITH_PLAN_PACKAGE = '1.3.0';
 export const CONTRACT_VERSION_WITH_MERGE_TRANSACTION = '1.4.0';
+/** multi-user-collaboration（S45）：status 派生 next_scenario_id / next_feature_id / next_decision_id（superset schema 文档化版本）。 */
+export const CONTRACT_VERSION_WITH_DERIVED_NEXT_IDS = '1.5.0';
 
 /**
  * add-feature-model（S34，delta-F1=B）：条件版本选择器——status/next 发射 `contract.version` 的唯一入口。

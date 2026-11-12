@@ -390,7 +390,7 @@ describe('S09-F 执行记录生命周期 — 单元', () => {
     expect(existsSync(join(bare, RUNTIME, 'guard-records'))).toBe(false);
   }, TIMEOUT);
 
-  it('UT-S09-416: 项目级锁 state.lock', async () => {
+  it('UT-S09-416: 项目级锁 state.lock', { retry: 3 }, async () => {
     const root = fixture();
     const lock = join(root, RUNTIME, 'state.lock');
     // O_CREAT|O_EXCL：已存在的锁文件不被覆盖

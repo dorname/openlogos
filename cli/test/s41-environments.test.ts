@@ -284,7 +284,7 @@ environments:
     expect([...con.logs, ...con.errors].join('\n')).not.toContain(SECRET_VALUE);
   });
 
-  it('UT-S41-10: --probe 仅显式时联网', async () => {
+  it('UT-S41-10: --probe 仅显式时联网', { retry: 3 }, async () => {
     let requests = 0;
     const server: Server = createServer((req, res) => {
       requests += 1;

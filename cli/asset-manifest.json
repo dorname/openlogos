@@ -57,11 +57,11 @@
     },
     {
       "path": "spec/schema/next.schema.json",
-      "sha256": "0af3aca15f3af5ac7093b85b1e294ec912331c740cc43661ff663dbd9dcb5d12"
+      "sha256": "d4f29f49043f6f17e93327bc7c42973f30e5860c63df00c524a04edba0b96ce8"
     },
     {
       "path": "spec/schema/status.schema.json",
-      "sha256": "ee6b152060f4aafa12bd6f24cb38ad506fe838572357b3d75cfc1744abe05ec0"
+      "sha256": "aa8931a65bcdf09e330d7148c13e0946e87a911c7aa3737541672c86728cfcc1"
     },
     {
       "path": "spec/schema/merge-transaction.schema.json",
@@ -114,5 +114,5 @@
       "sha256": "e7dfaa666b8c5a8a3aaa70a5a44fbd36afaa10d9a91e47738a803968353b594d"
     }
   ],
-  "payloadHash": "21607bcc855fbaa502bdbb9ee037aed938e50d8a663bdee222263494b998b66e"
+  "payloadHash": "80df35463ad1a948ba6a7b09760dbffef742b6743195ee028576720f0b977377"
 }

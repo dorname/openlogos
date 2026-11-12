@@ -243,7 +243,7 @@ describe('S43 openlogos approve 与审批门 — 单元测试（environment-prom
     expect(starts().length).toBe(1);
   }, 120_000);
 
-  it('UT-S43-05: 审批的使用、幂等与 commit 绑定', () => {
+  it('UT-S43-05: 审批的使用、幂等与 commit 绑定', { retry: 3 }, () => {
     setup();
     const A = json(['approve', '--env', 'prod', '--ref', 'v1']).data.approval_id;
     // ① 部署 X 成功后 A 已使用

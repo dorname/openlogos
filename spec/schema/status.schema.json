@@ -1,9 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://openlogos.dev/schema/status/1.4.0",
+  "$id": "https://openlogos.dev/schema/status/1.5.0",
   "title": "openlogos status --format json 机器契约（data 对象）",
-  "x-contract-version": "1.4.0",
-  "$comment": "向后兼容 superset schema，最高支持契约版本 1.4.0。1.4.0 增加只读 merge transaction phase、classification、allowed_actions、next_action 与 completed receipt 摘要；JSON Schema dialect = draft 2020-12；校验对象 = envelope 的 data 字段。",
+  "x-contract-version": "1.5.0",
+  "$comment": "向后兼容 superset schema，最高支持契约版本 1.4.0。1.4.0 增加只读 merge transaction phase、classification、allowed_actions、next_action 与 completed receipt 摘要；JSON Schema dialect = draft 2020-12；校验对象 = envelope 的 data 字段。 1.5.0 增加派生 next_scenario_id / next_feature_id / next_decision_id（multi-user-collaboration，counter 派生化，见 spec/logos-project.md）。 1.5.0 增加派生 next-id 字段。",
   "type": "object",
   "required": [
     "contract"
@@ -88,6 +88,21 @@
       },
       "additionalProperties": false,
       "description": "登记表存在但非法时输出（spec/environments.md §7.3）。"
+    },
+    "next_scenario_id": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "派生下一场景编号（max(configured ?? 0, max已落盘SXX+1)；multi-user-collaboration S45）"
+    },
+    "next_feature_id": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "派生下一 feature 编号（同型派生公式）"
+    },
+    "next_decision_id": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "派生下一决策编号（同型派生公式）"
     }
   },
   "allOf": [
@@ -188,9 +203,10 @@
             "1.1.0",
             "1.2.0",
             "1.3.0",
-            "1.4.0"
+            "1.4.0",
+            "1.5.0"
           ],
-          "$comment": "1.0.0 为基础契约；1.1.0 支持 feature；1.2.0 支持 clarification；1.3.0 支持 Plan Package evaluation 与 completion issues；1.4.0 支持 merge transaction 只读投影。"
+          "$comment": "1.0.0 为基础契约；1.1.0 支持 feature；1.2.0 支持 clarification；1.3.0 支持 Plan Package evaluation 与 completion issues；1.4.0 支持 merge transaction 只读投影。 1.5.0 支持派生 next_scenario_id / next_feature_id / next_decision_id（multi-user-collaboration）。"
         }
       }
     },
@@ -1292,17 +1308,50 @@
     },
     "authorityClosure": {
       "type": "object",
-      "required": ["schema", "applicability", "facts_total", "facts_closed", "projections", "retired_shadow_sources", "unresolved", "pass"],
+      "required": [
+        "schema",
+        "applicability",
+        "facts_total",
+        "facts_closed",
+        "projections",
+        "retired_shadow_sources",
+        "unresolved",
+        "pass"
+      ],
       "additionalProperties": false,
       "properties": {
-        "schema": { "const": "openlogos/authority-closure-evaluation@1" },
-        "applicability": { "enum": ["required", "not_applicable"] },
-        "facts_total": { "type": "integer", "minimum": 0 },
-        "facts_closed": { "type": "integer", "minimum": 0 },
-        "projections": { "type": "integer", "minimum": 0 },
-        "retired_shadow_sources": { "type": "integer", "minimum": 0 },
-        "unresolved": { "type": "integer", "minimum": 0 },
-        "pass": { "type": "boolean" }
+        "schema": {
+          "const": "openlogos/authority-closure-evaluation@1"
+        },
+        "applicability": {
+          "enum": [
+            "required",
+            "not_applicable"
+          ]
+        },
+        "facts_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "facts_closed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "projections": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "retired_shadow_sources": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unresolved": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pass": {
+          "type": "boolean"
+        }
       }
     },
     "mergeTransaction": {
