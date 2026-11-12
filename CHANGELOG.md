@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-11-12
+
+**多人与多会话协作（multi-user-collaboration，F09）**——OpenLogos 现在支持「多人各自 clone 并行开发」与「单人多 AI 会话并行推进提案」。并行不需要中央服务，汇合冲突由本地机制自动消解；guard 单锁与全部既有门禁（merge F2、verify、smoke、archive、PreToolUse）语义零改动。
+
+### 从 0.16.7 升级
+
+1. 更新全局 CLI：`npm install -g @miniidealab/openlogos@latest`，确认 `openlogos --version` 为 `0.17.0`。
+2. 在每个项目执行一次 `openlogos sync`：`.gitignore` 托管区块新增固定条目 `logos/.openlogos-guard`（工作目录锁）与 `.worktrees/`（会话目录），从此这两类本地状态不再被 git 跟踪互写。guard 已被历史项目跟踪时，sync 会给出 `git rm --cached` 指引（不会自动改写索引）。
+3. 取号方式变化：`logos-project.yaml` 的 `scenario_counter` / `feature_counter` 降级为兼容下限（旧值继续被读取），新场景 / feature 编号一律按「已落盘最大号 + 1」派生，`openlogos status --format json` 新增 `next_scenario_id` / `next_feature_id` / `next_decision_id` 字段供 AI 取号。yaml 不再需要也不应手工维护 counter 行。
+
+### 单人多会话（S44）
+
+- `openlogos change <slug> --worktree`：在 `.worktrees/<slug>` 创建独立工作区与短暂分支 `openlogos/<slug>`，自动复制本地 config、部署 AI 资产并创建提案。从该目录启动新 AI 会话即可与主工作区并行推进两个提案；verify 通过后 merge-back、`openlogos sync` 收敛、删除分支与 worktree 即可。同目录第二提案仍被 guard 拒绝（提示会指引 `--worktree`）。
+
+### 多人跨 clone（S45）
+
+- merge preflight 三查：delta 触达的目标文档在 origin 有更新即阻塞并提示先 `git pull --rebase`（离线降级为警告）；SXX/FXX 编号在落盘时按派生公式定稿（拟用号被占自动改写 deltas 引用）；锚失效报错附带 origin 上下文与恢复重放指引。
+- `openlogos sync` 汇合收敛：pull / merge-back 后自动检出同号异 slug（如 core-S44-a 与 pay-S44-b），对**本人未推送**的工件按注册文法自动重排（文件名、标题、UT/ST 表内 ID），origin 已推送的编号冻结不改写；文法外歧义引用 fail-closed 并列出人工处理位置；重排后自动重建 resource_index。
+
+### 其他
+
+- 契约版本 1.5.0：`status` / `next` 的 superset schema 增加派生 next-id 字段（additive）。
+- 测试基础设施：root 下权限类用例 `skipIf`、无 node / 沙箱前置守卫、负载敏感用例 retry——不影响非 root 与具备前置环境的断言语义。
+
+
 ## [0.16.7] - 2026-10-17
 
 0.16.2 之后的首个公开版本：**环境登记与部署执行**——在 `logos/environments.yaml` 登记项目的部署环境，用 `openlogos deploy` 按登记的方式部署到指定环境并留下部署账本，用晋级顺序与审批门约束生产部署，并可为提案指定默认部署环境。0.16.3～0.16.6 只在本机安装过，其内容全部包含在本版中，从 0.16.2 升级的用户直接看本节即可。
