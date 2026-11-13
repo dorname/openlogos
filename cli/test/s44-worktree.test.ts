@@ -1,7 +1,7 @@
 /**
  * multi-user-collaboration [code] 切片 4：worktree 会话入口。
  *
- * 覆盖 UT-S44-01～06、ST-S44-01、ST-S44-02（与 logos/resources/test/core-S44-test-cases.md 对齐）。
+ * 覆盖 UT-S44-01～06、ST-S44-01、ST-S44-02、ST-S44-03（fix-worktree-sync-stamp）（与 logos/resources/test/core-S44-test-cases.md 对齐）。
  * 全部走真实 CLI（cli/dist/index.js），隔离临时 git 项目；
  * 「零残留」= 主工作区文件快照 + git 分支列表 + git worktree list 三方与执行前一致。
  * 结果由全局 OpenLogos reporter 写入 logos/resources/verify/test-results.jsonl。
@@ -167,5 +167,50 @@ describe('S44 切片4：worktree 会话入口', () => {
     expect(r.stderr).toContain('WORKTREE_TARGET_EXISTS');
     expect(worktrees(root)).toBe(before);
     expect(existsSync(join(root, 'logos/changes/feat-fail'))).toBe(false);
+  }, TIMEOUT);
+
+  it('ST-S44-03: 基线无 sync stamp 的双 worktree 提交与连续 merge-back', () => {
+    const root = gitProject();
+    // 缺陷前置：基线必须没有 sync stamp——预先存在的共享 stamp 会掩盖 add/add 冲突
+    expect(existsSync(join(root, 'logos/.openlogos-sync.json'))).toBe(false);
+
+    const r1 = runCli(root, ['change', 'feat-alpha', '--worktree']);
+    expect(r1.exitCode, `stderr=${r1.stderr}`).toBe(0);
+    const r2 = runCli(root, ['change', 'feat-beta', '--worktree']);
+    expect(r2.exitCode, `stderr=${r2.stderr}`).toBe(0);
+
+    const alpha = join(root, '.worktrees', 'feat-alpha');
+    const beta = join(root, '.worktrees', 'feat-beta');
+    // 两处 stamp 均由各自资产部署生成（syncedAt 不同），且都被固定条目忽略
+    for (const wt of [alpha, beta]) {
+      expect(existsSync(join(wt, 'logos/.openlogos-sync.json')), `${wt} 应生成 stamp`).toBe(true);
+      expect(git(wt, ['check-ignore', '-q', 'logos/.openlogos-sync.json']).status, `${wt} stamp 应被固定条目忽略`).toBe(0);
+    }
+
+    // 各自提交不同业务产物；提交树不含 stamp（修复前 git add -A 会把不同 syncedAt 的 stamp 收进两个分支）
+    put(alpha, 'notes/alpha.md', '# Alpha 产物\n');
+    put(beta, 'notes/beta.md', '# Beta 产物\n');
+    gitOk(alpha, ['add', '-A']);
+    gitOk(alpha, ['commit', '-qm', 'alpha session']);
+    gitOk(beta, ['add', '-A']);
+    gitOk(beta, ['commit', '-qm', 'beta session']);
+    expect(git(alpha, ['ls-files']).stdout.toString('utf-8')).not.toContain('.openlogos-sync.json');
+    expect(git(beta, ['ls-files']).stdout.toString('utf-8')).not.toContain('.openlogos-sync.json');
+
+    // 主工作区连续 merge-back（修复前第二次必在 stamp 上 add/add 冲突）
+    gitOk(root, ['merge', '--no-ff', 'openlogos/feat-alpha', '-m', 'merge alpha']);
+    gitOk(root, ['merge', '--no-ff', 'openlogos/feat-beta', '-m', 'merge beta']);
+    expect(readFileSync(join(root, 'notes/alpha.md'), 'utf-8')).toBe('# Alpha 产物\n');
+    expect(readFileSync(join(root, 'notes/beta.md'), 'utf-8')).toBe('# Beta 产物\n');
+
+    // 清理：无短期分支与 worktree 残留
+    gitOk(root, ['worktree', 'remove', '--force', '.worktrees/feat-alpha']);
+    gitOk(root, ['worktree', 'remove', '--force', '.worktrees/feat-beta']);
+    gitOk(root, ['branch', '-D', 'openlogos/feat-alpha']);
+    gitOk(root, ['branch', '-D', 'openlogos/feat-beta']);
+    expect(worktrees(root)).not.toContain('feat-alpha');
+    expect(worktrees(root)).not.toContain('feat-beta');
+    expect(branches(root)).not.toContain('openlogos/feat-alpha');
+    expect(branches(root)).not.toContain('openlogos/feat-beta');
   }, TIMEOUT);
 });

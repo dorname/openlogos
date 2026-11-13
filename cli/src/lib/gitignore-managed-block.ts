@@ -2,7 +2,8 @@
  * `.gitignore` 托管区块渲染器（guard-versioned-content-scope，功能规格 §2.88.3）。
  *
  * 单一实现，供 `openlogos ignore`、`openlogos sync`（按配置重渲染）与 init / adopt（固定运行时条目）复用：
- * - 区块格式：起始标记、说明行、固定条目 `logos/.openlogos-runtime/`、`guard.unversioned` 条目（按配置顺序）、结束标记；
+ * - 区块格式：起始标记、说明行、固定条目（runtime 目录、guard 锁、worktree 会话目录、sync stamp——fix-worktree-sync-stamp 起），
+ *   `guard.unversioned` 条目（按配置顺序）、结束标记；
  * - 只处理项目根 `.gitignore`；无区块时追加到文件末尾（前面补一个空行）；文件不存在时新建仅含区块的文件；
  * - 区块外逐字节不变：以 Buffer 拼接，不做任何换行归一化或编码往返；
  * - 行尾沿用文件现有风格：首个换行为 CRLF 则整个区块用 CRLF，否则 LF；
@@ -17,15 +18,21 @@ import { join } from 'node:path';
 export const MANAGED_START = '# >>> openlogos managed >>>';
 export const MANAGED_END = '# <<< openlogos managed <<<';
 export const MANAGED_NOTE = '# 由 openlogos 维护，请用 `openlogos ignore` 修改；区块外内容不会被改动';
-/** 托管区块固定条目（multi-user-collaboration / S45 状态分层）：guard 自有状态目录 + 工作目录锁 + worktree 会话目录。 */
+/**
+ * 托管区块固定条目（multi-user-collaboration / S45 状态分层 + fix-worktree-sync-stamp）：
+ * guard 自有状态目录 + 工作目录锁 + worktree 会话目录 + sync stamp（本机同步证据，
+ * `syncedAt` 各工作目录不同、不得参与 Git 汇合——多 worktree 提交后 merge-back 会 add/add 冲突）。
+ */
 export const MANAGED_RUNTIME_ENTRY = 'logos/.openlogos-runtime/';
 export const MANAGED_GUARD_ENTRY = 'logos/.openlogos-guard';
 export const MANAGED_WORKTREE_ENTRY = '.worktrees/';
+export const MANAGED_SYNC_STAMP_ENTRY = 'logos/.openlogos-sync.json';
 /** 固定条目全集：渲染恒含、ignore remove 恒拒；顺序稳定（spec/change-management.md §多人协作 1）。 */
 export const MANAGED_FIXED_ENTRIES: readonly string[] = [
   MANAGED_RUNTIME_ENTRY,
   MANAGED_GUARD_ENTRY,
   MANAGED_WORKTREE_ENTRY,
+  MANAGED_SYNC_STAMP_ENTRY,
 ];
 
 export interface ManagedBlockCorruption {

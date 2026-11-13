@@ -1,7 +1,8 @@
 /**
  * guard-versioned-content-scope [code] 切片 2：版本管理范围配置（S40）。
  *
- * 覆盖 UT-S40-01～UT-S40-29、ST-S40-01～ST-S40-15（与 logos/resources/test/core-S40-test-cases.md 对齐）。
+ * 覆盖 UT-S40-01～UT-S40-29、ST-S40-01～ST-S40-15（与 logos/resources/test/core-S40-test-cases.md 对齐），
+ * 以及协作固定条目扩展 UT-S40-30～34、ST-S40-16（fix-worktree-sync-stamp 起固定条目为四条）。
  * - UT 直接调用命令核心 `runScopeCommand`（文件写入口与进程调用层注入哨兵），或以函数层 / stdin JSON 调用分发源 guard-check；
  * - ST 走真实 CLI 入口（cli/dist/index.js）与真实 hook 脚本（plugin/bin/guard-check），隔离临时项目，执行前后做全项目 SHA-256 快照。
  * - 事后检查引擎（切片 3，PostToolUse `check`）相关断言以分发源引擎真实执行；Cursor 分层能力（切片 5）的断言不在本文件伪造。
@@ -1026,19 +1027,20 @@ describe('S40 ignore / exempt 与宿主审批 — 场景', () => {
   }, TIMEOUT);
 });
 
-describe('S40 协作固定条目扩展（multi-user-collaboration 切片1）', () => {
-  it('UT-S40-30: 固定条目集渲染恰为三条且区块外逐字节不变', () => {
-    expect(MANAGED_FIXED_ENTRIES).toEqual(['logos/.openlogos-runtime/', 'logos/.openlogos-guard', '.worktrees/']);
+describe('S40 协作固定条目扩展（multi-user-collaboration 切片1 + fix-worktree-sync-stamp）', () => {
+  it('UT-S40-30: 固定条目集渲染恰为四条且区块外逐字节不变', () => {
+    expect(MANAGED_FIXED_ENTRIES).toEqual(['logos/.openlogos-runtime/', 'logos/.openlogos-guard', '.worktrees/', 'logos/.openlogos-sync.json']);
     const body = renderManagedBlockBody(['dist/'], '\n');
     expect(body.split('\n')).toEqual([
       MANAGED_START, MANAGED_NOTE,
-      'logos/.openlogos-runtime/', 'logos/.openlogos-guard', '.worktrees/',
+      'logos/.openlogos-runtime/', 'logos/.openlogos-guard', '.worktrees/', 'logos/.openlogos-sync.json',
       'dist/', MANAGED_END,
     ]);
     // 固定条目与用户条目重复时不重复输出
-    const dup = renderManagedBlockBody(['logos/.openlogos-guard', '.worktrees/'], '\n');
+    const dup = renderManagedBlockBody(['logos/.openlogos-guard', '.worktrees/', 'logos/.openlogos-sync.json'], '\n');
     expect(dup.split('\n').filter(l => l === 'logos/.openlogos-guard')).toHaveLength(1);
     expect(dup.split('\n').filter(l => l === '.worktrees/')).toHaveLength(1);
+    expect(dup.split('\n').filter(l => l === 'logos/.openlogos-sync.json')).toHaveLength(1);
     // 区块外逐字节不变（含 CRLF）
     const pre = Buffer.from('# 用户注释\r\nnode_modules/\r\n', 'utf-8');
     const rendered = renderGitignoreWithManagedBlock(pre, ['dist/']);
@@ -1046,6 +1048,7 @@ describe('S40 协作固定条目扩展（multi-user-collaboration 切片1）', (
     if (rendered.ok) {
       expect(rendered.next.subarray(0, pre.length).equals(pre)).toBe(true);
       expect(rendered.next.toString('utf-8')).toContain('logos/.openlogos-guard\r\n');
+      expect(rendered.next.toString('utf-8')).toContain('logos/.openlogos-sync.json\r\n');
     }
   });
 
@@ -1080,9 +1083,9 @@ describe('S40 协作固定条目扩展（multi-user-collaboration 切片1）', (
     expect(readFileSync(join(root, '.gitignore'), 'utf-8')).toContain('logos/.openlogos-guard');
   });
 
-  it('UT-S40-33: 固定条目（guard / .worktrees/ 及书写变体）不可被 ignore remove 移除', () => {
+  it('UT-S40-33: 固定条目（guard / .worktrees / sync stamp 及书写变体）不可被 ignore remove 移除', () => {
     const root = project({ gitignore: `${managedBlock([])}\n`, locale: 'zh' });
-    for (const v of ['logos/.openlogos-guard', '/logos/.openlogos-guard', '.worktrees/', '/.worktrees/', 'logos/.openlogos-runtime/']) {
+    for (const v of ['logos/.openlogos-guard', '/logos/.openlogos-guard', '.worktrees/', '/.worktrees/', 'logos/.openlogos-runtime/', 'logos/.openlogos-sync.json', '/logos/.openlogos-sync.json']) {
       const r = runScopeCommand('ignore', ['remove', v], root);
       expect(r.exitCode, v).toBe(1);
       expect(r.stderr, v).toContain('固定条目');
@@ -1091,25 +1094,55 @@ describe('S40 协作固定条目扩展（multi-user-collaboration 切片1）', (
     expect(readFileSync(join(root, '.gitignore'), 'utf-8')).toBe(`${managedBlock([])}\n`);
   });
 
-  it('ST-S40-16: sync 后固定条目在场且已跟踪 guard 有 untrack 指引（端到端）', () => {
+  it('UT-S40-34: sync stamp 已被跟踪输出 untrack 指引且不自动改写索引，新 stamp 被固定忽略', () => {
+    const root = trackedRepo({ 'logos/.openlogos-sync.json': '{"cliVersion":"0.17.0","syncedAt":"2026-11-13T00:00:00.000Z","planContractVersion":"1.4.0","managedAssetsHash":"x"}\n' });
+    expect(lsFilesZ(root)).toContain('logos/.openlogos-sync.json');
+    const stampBytes = readFileSync(join(root, 'logos/.openlogos-sync.json'));
+    const logs: string[] = [];
+    const ok = applyIgnoreBlock(root, 'zh', { stacks: [], git: true, suggestions: [], outcome: 'non-interactive' }, {
+      log: l => logs.push(l), warn: l => logs.push(l),
+    });
+    expect(ok).toBe(true);
+    const out = logs.join('\n');
+    expect(out).toContain('logos/.openlogos-sync.json');
+    expect(out).toContain('git --literal-pathspecs rm --cached');
+    // CLI 不自动改写索引：sync stamp 仍被跟踪，工作区字节不变
+    expect(lsFilesZ(root)).toContain('logos/.openlogos-sync.json');
+    expect(readFileSync(join(root, 'logos/.openlogos-sync.json')).equals(stampBytes)).toBe(true);
+    // 区块已含固定条目（含 sync stamp）
+    expect(readFileSync(join(root, '.gitignore'), 'utf-8')).toContain('logos/.openlogos-sync.json');
+    // 用户按指引移出索引后：固定条目接管该路径——check-ignore 命中，且 git add -A 不再回收
+    runHint(root, hintCommand(out));
+    expect(lsFilesZ(root)).not.toContain('logos/.openlogos-sync.json');
+    const ignore = spawnSync('git', ['check-ignore', '-q', 'logos/.openlogos-sync.json'], { cwd: root, env: cleanEnv() });
+    expect(ignore.status, `移出索引后 stamp 应被固定条目忽略`).toBe(0);
+    expect(spawnSync('git', ['add', '-A'], { cwd: root, env: cleanEnv() }).status).toBe(0);
+    expect(lsFilesZ(root)).not.toContain('logos/.openlogos-sync.json');
+  });
+
+  it('ST-S40-16: sync 后固定条目在场且已跟踪本地状态有 untrack 指引（端到端）', () => {
     const root = tempRoot();
     scaffoldProject(root, { locale: 'zh' });
     put(root, 'logos/.openlogos-guard', '{"activeChange":"a","module":"core"}\n');
+    put(root, 'logos/.openlogos-sync.json', '{"cliVersion":"0.17.0","syncedAt":"2026-11-13T00:00:00.000Z","planContractVersion":"1.4.0","managedAssetsHash":"legacy"}\n');
     gitInit(root);
     commitAll(root);
     expect(lsFilesZ(root)).toContain('logos/.openlogos-guard');
+    expect(lsFilesZ(root)).toContain('logos/.openlogos-sync.json');
 
     const r = runCli(root, ['sync']);
     expect(r.exitCode, `sync stderr=${r.stderr}`).toBe(0);
     const gitignore = readFileSync(join(root, '.gitignore'), 'utf-8');
-    for (const entry of ['logos/.openlogos-runtime/', 'logos/.openlogos-guard', '.worktrees/']) {
+    for (const entry of ['logos/.openlogos-runtime/', 'logos/.openlogos-guard', '.worktrees/', 'logos/.openlogos-sync.json']) {
       expect(gitignore).toContain(entry);
     }
     expect(r.stdout).toContain('git --literal-pathspecs rm --cached');
     expect(r.stdout).toContain('logos/.openlogos-guard');
+    expect(r.stdout).toContain('logos/.openlogos-sync.json');
     // 仍被跟踪（不自动改写索引）
     expect(lsFilesZ(root)).toContain('logos/.openlogos-guard');
-    // 幂等：再次 sync 字节不变
+    expect(lsFilesZ(root)).toContain('logos/.openlogos-sync.json');
+    // 幂等：再次 sync 区块字节不变
     const before = readFileSync(join(root, '.gitignore'));
     const again = runCli(root, ['sync']);
     expect(again.exitCode).toBe(0);

@@ -86,7 +86,7 @@ export function ignorePatternInvalidReason(pattern: string): InvalidReason | nul
   return null;
 }
 
-/** 固定条目（托管区块）的各种书写变体匹配；multi-user-collaboration 起固定条目集 = runtime / guard / .worktrees。 */
+/** 固定条目（托管区块）的各种书写变体匹配；固定条目集 = runtime / guard / .worktrees / sync stamp（fix-worktree-sync-stamp 起四条）。 */
 export function isRuntimeIgnoreEntry(pattern: string): boolean {
   let p = pattern.trim();
   while (p.startsWith('/')) p = p.slice(1);
