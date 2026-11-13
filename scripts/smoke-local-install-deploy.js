@@ -183,6 +183,14 @@ function smoke268() {
   const started = Date.now();
   const c = checker();
   const check = cliJson(['env', 'check']);
+  // 环境适配（个人 fork 发布配套）：本仓未启用环境管理（ENV_REGISTRY_NOT_FOUND）时，
+  // 「本机测试环境脚本部署」用例的前置不具备——四条用例写显式 skip（环境缺口，非失败）。
+  if (check.error?.code === 'ENV_REGISTRY_NOT_FOUND') {
+    for (const id of ['SMOKE-core-268', 'SMOKE-core-269', 'SMOKE-core-270', 'SMOKE-core-271']) {
+      skip(id, '本仓未启用环境管理（logos/environments.yaml 不存在），本机测试环境脚本部署用例不适用', ['environment-registry']);
+    }
+    return true;
+  }
   c.expect('env check 退出码', check.status, 0);
   c.assert('env check errors', Array.isArray(check.data?.errors) && check.data.errors.length === 0, JSON.stringify(check.data?.errors ?? check.error));
   const show = cliJson(['env', 'show', TARGET_ENV]);
