@@ -3445,7 +3445,7 @@ Claude Code 提供官方设置 `language`（Claude 回复的首选语言）。�
 - **触发条件**：单一开发者希望在同一个仓库内并行推进两个及以上变更提案（典型：一个提案等待人类确认时，开第二个 AI 会话推进另一提案），或同一工作目录的第二个 AI 会话执行 `openlogos change` 被 guard 单锁拒绝时。
 - **用户价值**：无需引入 guard 多锁或修改任何既有门禁（merge F2 一致性、verify、smoke、archive 行为零漂移），即可获得提案级并行能力；每个会话拥有独立完整的单提案工作区，spec 与代码并行天然安全；并行机制是短暂的工具托管分支，不增加团队分支管理负担。
 - **优先级**：P1
-- **主路径**：开发者执行 `openlogos change <slug> --worktree`，CLI 创建短暂分支 `openlogos/<slug>` 与工作目录 `.worktrees/<slug>`（托管区块固定条目忽略）、在缺 `logos/logos.config.json` 时从主工作区复制、部署 AI 资产并创建提案；开发者从该目录启动新 AI 会话，走既有单提案全流程（plan → delta → merge → slice → code → verify）；verify 通过后将分支 merge-back 进集成分支、执行 `openlogos sync` 收敛（见 S45）、删除分支与 worktree、归档提案。
+- **主路径**：开发者执行 `openlogos change <slug> --worktree`，CLI 创建短暂分支 `openlogos/<slug>` 与工作目录 `.worktrees/<slug>`（托管区块固定条目忽略）、在缺 `logos/logos.config.json` 时从主工作区复制、部署 AI 资产并创建提案；`logos/.openlogos-sync.json` 仅作为各工作目录的本机同步证据并固定忽略，不随提案提交。开发者从该目录启动新 AI 会话，走既有单提案全流程（plan → delta → merge → slice → code → verify）；verify 通过后将分支 merge-back 进集成分支、执行 `openlogos sync` 收敛（见 S45）、删除分支与 worktree、归档提案。
 
 ### 验收条件
 
@@ -3465,18 +3465,23 @@ Claude Code 提供官方设置 `language`（Claude 回复的首选语言）。�
 - **THEN** 各命令行为与主工作区完全一致（guard 单锁、merge F2、门禁与派生零漂移）；无需任何多提案感知的新参数
 
 #### 正常：merge-back 收敛与清理
-- **GIVEN** worktree 内提案 verify 通过
-- **WHEN** 将 `openlogos/<slug>` 合入集成分支并执行 `openlogos sync`
-- **THEN** 汇合冲突按 S45 协议收敛（编号重排、index 重建）；收敛通过后删除分支与 worktree 不产生任何仓库残留（`.worktrees/` 不入库）
+- **GIVEN** 两个 worktree 内提案 verify 通过，且基线原先没有 sync stamp
+- **WHEN** 两个会话分别提交不同业务产物，再将 `openlogos/<slug>` 依次合入集成分支并执行 `openlogos sync`
+- **THEN** 各工作目录仍可写入并使用自己的 `logos/.openlogos-sync.json` 做资产诊断，但该文件被固定忽略、未进入提交；两次 merge-back 均成功，不发生 sync stamp 时间戳 add/add 冲突；汇合冲突按 S45 协议收敛（编号重排、index 重建）；收敛通过后删除分支与 worktree 不产生任何仓库残留（`.worktrees/` 不入库）
 
 #### 异常：--worktree 创建失败零残留
 - **GIVEN** 同名分支已存在或 worktree 路径被占用
 - **WHEN** 执行 `openlogos change <slug> --worktree`
 - **THEN** 以稳定错误码拒绝并给出处置指引；不产生半套 worktree / 分支 / 提案残留
 
+#### 兼容：历史 sync stamp 已跟踪
+- **GIVEN** 存量项目已将 `logos/.openlogos-sync.json` 纳入 Git 索引
+- **WHEN** 执行 `openlogos sync`
+- **THEN** 固定忽略项幂等追加并输出该文件的 untrack 指引；CLI 不自动执行 `git rm --cached`，索引保持原状，由用户决定何时移出版本控制
+
 ### 追溯
-- 需求：S44-AC-01（guardConflict 指引）、S44-AC-02（一条龙创建）、S44-AC-03（零漂移）、S44-AC-04（merge-back 收敛）
-- 测试：UT-S44-01～、ST-S44-01～（见 core-S44-test-cases.md）
+- 需求：S44-AC-01（guardConflict 指引）、S44-AC-02（一条龙创建）、S44-AC-03（零漂移）、S44-AC-04（merge-back 收敛）、S44-AC-05（sync stamp 本机状态与历史兼容）
+- 测试：UT-S44-01～、ST-S44-01～、ST-S44-03（见 core-S44-test-cases.md）
 - 决策：D16
 
 ## S45: 跨 clone 汇合与编号唯一性
@@ -3523,8 +3528,9 @@ Claude Code 提供官方设置 `language`（Claude 回复的首选语言）。�
 - **THEN** 阻塞并提示先 pull（离线时 fetch 失败降级为警告，不阻塞本地 merge）
 
 #### 正常：guard 永不入库
+
 - **GIVEN** 任意项目执行 `openlogos sync`
-- **THEN** `.gitignore` 托管区块固定条目含 `logos/.openlogos-guard` 与 `.worktrees/`，幂等重渲染；guard 已被 git 跟踪时输出 untrack 指引（不自动改写用户索引）
+- **THEN** `.gitignore` 托管区块固定条目含 `logos/.openlogos-guard`、`.worktrees/` 与 `logos/.openlogos-sync.json`，幂等重渲染；guard 或 sync stamp 已被 git 跟踪时输出 untrack 指引（不自动改写用户索引）；sync stamp 继续在各工作目录用于资产新鲜度诊断，但不作为共享产物提交
 
 ### 追溯
 - 需求：S45-AC-01（定稿）、S45-AC-02（重排）、S45-AC-03（fail-closed 边界）、S45-AC-04（派生化）、S45-AC-05（恢复重放）、S45-AC-06（fetch 检查）

@@ -917,7 +917,8 @@ failed/aborted 不产生规格提交；普通 fatal failed 无自动动作；rec
 - **本地永不入库**（`.gitignore` 托管区块固定条目，`openlogos sync` 幂等重渲染；已被 git 跟踪的输出 `git rm --cached` 指引、不自动改写索引）：
   - `logos/.openlogos-guard` —— 工作目录锁，表达「本工作目录此刻在做什么」；
   - `logos/.openlogos-runtime/`；
-  - `.worktrees/` —— worktree 会话目录。
+  - `.worktrees/` —— worktree 会话目录；
+  - `logos/.openlogos-sync.json` —— 当前工作目录最近一次成功 sync 的本机证据。各工作目录继续写入并据此判断资产新鲜度，但其 `syncedAt` 不参与 Git 汇合；历史已跟踪时仅提示 untrack。
 - **共享入库**：`logos/logos.config.json`、`logos/logos-project.yaml`、`logos/resources/**`、`logos/changes/<slug>/**`（活跃提案，普通项目默认跟踪；各仓可按自身约定排除——dogfooding 特例不属于本协议强制项）、`logos/changes/archive/**`。
 
 ### 2. worktree 会话隔离（S44，单人并行）
@@ -925,6 +926,7 @@ failed/aborted 不产生规格提交；普通 fatal failed 无自动动作；rec
 - 并行单元 = 一个 git worktree（`.worktrees/<slug>`）+ 一条短暂分支 `openlogos/<slug>`；同一分支不得同时在多个 worktree 检出（git 约束），分支在 verify 通过 merge-back 后即删——它是工具托管细节，不是团队维护的长期 feature branch。
 - 入口 `openlogos change <slug> --worktree`：先全量准备（建分支/worktree、部署 AI 资产、worktree 缺 `logos/logos.config.json` 时自主工作区复制、创建提案），任一步失败清理零残留；裸 git 等价路径（`git worktree add` + `openlogos sync` + `openlogos change`）并存。
 - worktree 内为既有单提案全流程，guard 单锁、merge F2、verify / smoke / archive、PreToolUse 判定行为与主工作区完全一致；**不存在任何多提案感知参数**。
+- 两个及以上 worktree 分别提交不同业务产物后，依次 merge-back 均须成功。各工作目录首次生成的 sync stamp 由固定忽略项隔离，不进入提交，不得因 `syncedAt` 不同产生 add/add 冲突；merge-back 后继续按 S45 执行 sync 收敛。
 - 同目录双会话继续被 guardConflict 拒绝；提示文案指引 `--worktree`。这是刻意保留的正确行为。
 
 ### 3. 跨 clone 汇合协议（S45，消除式）
@@ -967,3 +969,5 @@ failed/aborted 不产生规格提交；普通 fatal failed 无自动动作；rec
 ### 4. 兼容与降级
 
 全部为向后兼容增量：固定条目幂等追加、旧 counter 兼容读取、新增 JSON 字段 additive、重排只作用于本人未推送工件。降级旧版 CLI 时新固定条目无害、guard / config 无格式变更。
+
+sync stamp 的固定忽略只改变后续提交行为，不重写历史、不自动修改 Git 索引。存量项目已跟踪 `logos/.openlogos-sync.json` 时，`openlogos sync` 复用既有 untrack 指引；在用户显式移出索引前，CLI 不删除工作区文件、不执行 `git rm --cached`。新 clone 或未生成 stamp 的工作目录继续按既有 missing/sync-required 诊断运行 `openlogos sync`，资产新鲜度判定不变。

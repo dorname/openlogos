@@ -3075,7 +3075,7 @@ flowchart TD
 | 组件 | 职责 | 复用/新建 |
 |---|---|---|
 | worktree 会话入口（change --worktree） | 建分支/worktree、复制本地 config、部署 AI 资产、创建提案；失败零残留 | 新建（薄封装，复用 sync 部署） |
-| 托管区块固定条目 | `logos/.openlogos-guard`、`.worktrees/` 永不入库；幂等渲染；已跟踪给 untrack 指引 | 复用（追加固定条目） |
+| 托管区块固定条目 | `logos/.openlogos-guard`、`.worktrees/`、`logos/.openlogos-sync.json` 永不入库；幂等渲染；已跟踪给 untrack 指引 | 复用（追加固定条目） |
 | counter 派生取号 | `max(configured ?? 0, max已落盘+1)`；yaml 停止写回；status JSON 暴露派生 next-id | 推广（DXX 公式一般化） |
 | merge preflight 三查 | fetch 陈旧 view 阻塞（离线降级警告）→ 编号落盘定稿 → 撞号防御检测 | 扩展（merge 准入前挂三点检查） |
 | 收敛重排器 | 检出同号异 slug；对本人未推送工件按 S37 注册文法确定性改写；diff 清单；歧义 fail-closed | 新建（注册表上的纯函数变换） |
@@ -3089,12 +3089,14 @@ flowchart TD
 3. **门禁零漂移**：guard 单锁、merge F2、verify/smoke/archive、PreToolUse 判定语义不变；worktree 只是隔离手段。
 4. **重排边界**：只改写注册文法内的确定性引用；文法外歧义 fail-closed 整体不落盘——与 L8 守恒同一哲学（宁停勿猜）。
 5. **重排范围**：仅本 clone 未推送工件；已推送（origin 可见）编号视为冻结，永不改写他人产物。
+6. **sync stamp 本机隔离**：每个工作目录独立写入并读取自己的同步证据；固定忽略项保证其不随提案入库。基线无 stamp 的多个 worktree 分别提交后，merge-back 不得因各自 `syncedAt` 不同而冲突；历史已跟踪文件只提示、不自动改索引。
 
 ### 56.4 数据流与冲突面
 
 | 共享状态 | 冲突面 | 处置 |
 |---|---|---|
 | guard | 入库互写（历史项目） | 固定条目 + untrack 指引 |
+| sync stamp | 多工作目录首次生成不同 `syncedAt`，提交后 add/add | 归类为本机证据，固定忽略；历史跟踪仅提示 untrack |
 | counter 行 | 同行并发写 | 状态删除（派生化）——冲突面不存在 |
 | S/D/F 编号 | 同基线取号必同号 | 落盘定稿 + 收敛重排 |
 | resource_index | 同位置追加 / 漂移 | 收敛时整体重建 |

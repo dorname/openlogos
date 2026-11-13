@@ -22,13 +22,15 @@
 |----|------|-----------|----------|----------|----------|
 | ST-S44-01 | worktree 会话端到端（创建→内流程→清理） | S44 Step 1→4 | 隔离 launched git 项目 | ① `openlogos change <slug> --worktree`；② 在 `.worktrees/<slug>` 内执行 `openlogos status --format json`；③ `git worktree remove` + 删分支 | ① exit 0 且输出「从 .worktrees/<slug> 启动新会话」指引；② 正常输出、`active_change` 为该 slug（以 worktree 为项目根）；③ 清理后 `git worktree list` 无该项、`.worktrees/` 为空 |
 | ST-S44-02 | 创建失败端到端零残留 | EX-44.1 | 同名分支已存在 | ① `openlogos change <slug> --worktree`；② 全项目快照 | ① 稳定错误 + 处置指引；② 快照与执行前一致 |
+| ST-S44-03 | 基线无 sync stamp 的双 worktree 提交与连续 merge-back | S44 Step 1→4、EX-44.6 | 隔离 launched git 项目，基线无 `logos/.openlogos-sync.json` | ① 分别创建 feat-alpha / feat-beta worktree；② 确认两处 stamp 均生成且被 git 忽略；③ 两边写入不同业务文件并 `git add -A && git commit`；④ 主工作区连续 `git merge --no-ff` 两个分支；⑤ sync 后删除 worktree 与分支 | ② `git check-ignore logos/.openlogos-sync.json` 在两处均命中，`git ls-files` 不含 stamp；③ 提交仅含各自业务与提案产物，无时间戳文件；④ 两次 merge 均 exit 0，不发生 add/add 冲突，两份业务文件均存在且字节正确；⑤ 主 guard 不变、清理后无短期分支或 worktree 残留 |
 
 #### 三、测试数据与断言要求
 
 - worktree 断言一律以 `.worktrees/<slug>` 为项目根（cwd 切入后执行），不得用主工作区路径断言会话内行为；
 - 「零残留」= 主工作区 + git 分支列表 + `git worktree list` 三方与执行前一致（临时分支清理本身除外）；
 - config 复制断言按「复制源字段」（name / locale / description 与主 config 一致）——复制后 worktree 内 sync 的既有 backfill（documents / sourceRoots / verify 预运行配置）会规范化该文件，不属于复制源逐字断言之列；复制 ≠ 重建（不做字段级合并）。
+- ST-S44-03 必须断言基线确实无 sync stamp，避免预先存在的共享 stamp 掩盖缺陷；两处 stamp 内容可以不同，但提交树与 `git ls-files` 均不得包含它。两次 merge 必须真实执行，不能通过删除冲突文件、强制 checkout 或手工解决冲突来代替修复。
 
 #### 四、覆盖度校验
 
-- EX-44.1→UT-S44-03/04、ST-S44-02；EX-44.2→UT-S44-05；EX-44.3→UT-S44-01/02；EX-44.4→UT-S44-07；EX-44.5→ST-S44-01 ③ 清理路径；S44-AC-01→UT-S44-07、AC-02→UT-S44-01~05/ST-S44-01、AC-03→ST-S44-01 ②、AC-04→ST-S44-01 ③。
+- EX-44.1→UT-S44-03/04、ST-S44-02；EX-44.2→UT-S44-05；EX-44.3→UT-S44-01/02；EX-44.4→UT-S44-07；EX-44.5→ST-S44-01 ③ 清理路径；EX-44.6→ST-S44-03；S44-AC-01→UT-S44-07、AC-02→UT-S44-01~05/ST-S44-01、AC-03→ST-S44-01 ②、AC-04→ST-S44-01 ③、AC-05→ST-S44-03 与 UT-S40-34。

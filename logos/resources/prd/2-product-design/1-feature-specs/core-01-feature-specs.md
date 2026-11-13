@@ -5268,15 +5268,16 @@ Linux 以 `/proc/<pid>/environ` 读取进程初始环境。不可转储（non-du
 
 ### 2.96.1 状态分层（谁本地、谁共享）
 
-- **本地永不入库**（`.gitignore` 托管区块固定条目，`openlogos sync` 幂等重渲染；已被跟踪的输出 untrack 指引、不自动改写索引）：`logos/.openlogos-guard`（工作目录锁）、`logos/.openlogos-runtime/`、`.worktrees/`。
+- **本地永不入库**（`.gitignore` 托管区块固定条目，`openlogos sync` 幂等重渲染；已被跟踪的输出 untrack 指引、不自动改写索引）：`logos/.openlogos-guard`（工作目录锁）、`logos/.openlogos-runtime/`、`.worktrees/`、`logos/.openlogos-sync.json`（当前工作目录的同步证据）。
 - **共享入库**：`logos/logos.config.json`、`logos/logos-project.yaml`、`logos/resources/**`、`logos/changes/<slug>/**`（活跃提案）、`logos/changes/archive/**`。
 - guard 表达「本工作目录此刻在做什么」，是本地状态；多人各自 clone / 多 worktree 各持一把锁，互不拦截是正确语义。
+- sync stamp 记录各工作目录最近一次成功 sync 的 `cliVersion`、`syncedAt`、`planContractVersion`、`managedAssetsHash`，继续用于资产新鲜度诊断；其时间戳属于本机证据，不是需要汇合的共享规格。基线无 stamp 的多个 worktree 可以各自生成不同时间，但不得因此形成 Git add/add 冲突。历史项目已跟踪 stamp 时仅输出 untrack 指引，不自动修改索引；未跟踪 stamp 的新 clone 按既有 missing 诊断运行 `openlogos sync`。
 
 ### 2.96.2 worktree 会话生命周期（S44）
 
 1. **入口**：`openlogos change <slug> --worktree`——创建短暂分支 `openlogos/<slug>` 与 `.worktrees/<slug>`；worktree 缺 `logos/logos.config.json` 且主工作区存在时复制；在 worktree 内部署 AI 资产（等效 `openlogos sync`）并创建提案；输出「请从 .worktrees/<slug> 启动新会话」指引。裸 git 等价路径（`git worktree add` + `openlogos sync` + `openlogos change`）并存于文档，便利命令不是唯一入口。
 2. **会话内**：既有单提案全流程零漂移——guard 单锁、merge F2 一致性、verify、smoke、archive、PreToolUse 判定全部不变；不引入任何多提案感知参数。
-3. **汇合**：verify 通过后将分支 merge-back 进集成分支，执行 `openlogos sync` 收敛（§2.96.3），随后删除分支与 worktree、归档提案。
+3. **汇合**：verify 通过后将分支 merge-back 进集成分支，执行 `openlogos sync` 收敛（§2.96.3），随后删除分支与 worktree、归档提案。两个及以上 worktree 分别提交不同业务产物后，依次 merge-back 均须成功；各工作目录生成的 sync stamp 由固定忽略项隔离，不得进入提交或产生时间戳冲突。
 4. **失败路径**：创建失败（同名分支 / 路径占用 / sync 部署失败）零残留——先全量准备、后统一落盘，任一步失败清理已建产物并以稳定错误码报告。
 5. **同目录双会话**：继续被 guardConflict 拒绝；提示文案给出 `--worktree` 出路。
 
