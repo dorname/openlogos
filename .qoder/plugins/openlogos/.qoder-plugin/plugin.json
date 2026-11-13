@@ -1,9 +1,0 @@
-{
-  "name": "openlogos",
-  "version": "0.16.7",
-  "description": "OpenLogos 方法论与变更门禁的 Qoder 原生插件",
-  "author": {
-    "name": "MiniIdeaLab"
-  },
-  "license": "Apache-2.0"
-}
