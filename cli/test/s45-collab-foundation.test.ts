@@ -106,6 +106,44 @@ describe('S45 切片1：counter 派生化', () => {
     expect(parsed.data.next_feature_id).toBe(9);
     expect(parsed.data.next_decision_id).toBe(16);
   });
+
+  it('UT-S45-12: 派生并集判据——YAML scenarios[] 落后于磁盘场景文档时不拖低取值', () => {
+    const dir = 'logos/resources/prd/3-technical-plan/2-scenario-implementation';
+    // ① 落后分支：yaml 只登记 S43，磁盘已有 S43/S44/S45 三个场景文档 → next 46（修复前错误输出 44）
+    const root = tempRoot();
+    scaffoldProject(root);
+    put(root, 'logos/logos-project.yaml',
+      'project:\n  name: "test-project"\n  description: ""\n  methodology: "OpenLogos"\n\n'
+      + 'scenario_counter:\n  next_id: 44\n\n'
+      + 'scenarios:\n  - id: S43\n    name: 协作基线场景\n\n'
+      + 'resource_index: []\n\nconventions:\n  - "x"\n');
+    put(root, `${dir}/core-S43-baseline.md`, '# S43\n');
+    put(root, `${dir}/core-S44-alice.md`, '# S44: Alice\n');
+    put(root, `${dir}/pay-S45-bob.md`, '# S45: Bob\n');
+
+    const yamlBefore = readFileSync(join(root, 'logos/logos-project.yaml'), 'utf-8');
+    const r = runCli(root, ['status', '--format', 'json']);
+    expect(r.exitCode, `status stderr=${r.stderr}`).toBe(0);
+    const parsed = JSON.parse(r.stdout) as { data: Record<string, unknown> };
+    expect(parsed.data.next_scenario_id).toBe(46);
+    // counter 行不写回；重复执行取值稳定
+    expect(readFileSync(join(root, 'logos/logos-project.yaml'), 'utf-8')).toBe(yamlBefore);
+    const again = runCli(root, ['status', '--format', 'json']);
+    expect(JSON.parse(again.stdout).data.next_scenario_id).toBe(46);
+
+    // ② 领先分支：configured 50 且磁盘仅 S43 → 仍取 50（下限语义不变，与 UT-S45-01 同判据族）
+    const ahead = tempRoot();
+    scaffoldProject(ahead);
+    put(ahead, 'logos/logos-project.yaml',
+      'project:\n  name: "test-project"\n  description: ""\n  methodology: "OpenLogos"\n\n'
+      + 'scenario_counter:\n  next_id: 50\n\n'
+      + 'scenarios:\n  - id: S43\n    name: 协作基线场景\n\n'
+      + 'resource_index: []\n\nconventions:\n  - "x"\n');
+    put(ahead, `${dir}/core-S43-baseline.md`, '# S43\n');
+    const ra = runCli(ahead, ['status', '--format', 'json']);
+    expect(ra.exitCode, `status stderr=${ra.stderr}`).toBe(0);
+    expect(JSON.parse(ra.stdout).data.next_scenario_id).toBe(50);
+  });
 });
 
 describe('S09/S44 切片1：guardConflict worktree 指引', () => {

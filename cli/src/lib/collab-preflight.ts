@@ -13,7 +13,7 @@
 import { existsSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { deriveNextIds, readProjectYaml, type ProjectYamlData } from './project-yaml.js';
+import { deriveNextIds, landedScenarioNumbers, readProjectYaml, type ProjectYamlData } from './project-yaml.js';
 
 export interface CollabExecResult { status: number | null; stdout: string; stderr: string; error?: Error }
 export type CollabExec = (args: string[], cwd: string) => CollabExecResult;
@@ -54,23 +54,6 @@ export function renumberScenarioInContent(content: string, fromNum: number, toNu
     .replaceAll(new RegExp(`\\b${from}(?=-AC-)`, 'g'), to)
     .replaceAll(new RegExp(`-${from}(?=[-.])`, 'g'), `-${to}`)
     .replaceAll(new RegExp(`^(#{1,6}\\s+)${from}(?=[:：\\s]|$)`, 'gm'), `$1${to}`);
-}
-
-/** 已落盘场景号集合：yaml scenarios[]（单一真相）∪ 场景文档目录文件名。 */
-export function landedScenarioNumbers(root: string, data: ProjectYamlData | null | undefined): Set<number> {
-  const set = new Set<number>();
-  for (const s of data?.scenarios ?? []) {
-    const m = /^S(\d+)$/i.exec(s.id.trim());
-    if (m) set.add(Number(m[1]));
-  }
-  const dir = join(root, 'logos', 'resources', 'prd', '3-technical-plan', '2-scenario-implementation');
-  if (existsSync(dir)) {
-    for (const name of readdirSync(dir)) {
-      const m = /-S(\d+)-[^/\\]+\.md$/i.exec(name);
-      if (m) set.add(Number(m[1]));
-    }
-  }
-  return set;
 }
 
 /** 递归枚举提案 deltas 下的 Markdown 文件（相对 deltas 的路径）。 */

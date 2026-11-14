@@ -557,18 +557,40 @@ function idNumber(id: string, prefix: 'S' | 'F' | 'D'): number | null {
 }
 
 /**
+ * 已落盘场景号集合（fix-derived-scenario-id 单源判据）：yaml `scenarios[]` ∪ 场景文档目录
+ * `logos/resources/prd/3-technical-plan/2-scenario-implementation/` 文件名（`<…>-SXX-*.md`）。
+ * `spec/logos-project.md` §scenario_counter 规定唯一事实源是已落盘场景集合（文件系统）——
+ * 仅读 yaml 会在「收敛重排后磁盘领先于 yaml 登记」的协作态取号回退（Issue #2 实证）。
+ * yaml 缺失 / 目录缺失按空集处理，不报错。merge 定稿（collab-preflight）与本派生共享同一实现。
+ */
+export function landedScenarioNumbers(root: string, data: ProjectYamlData | null | undefined): Set<number> {
+  const set = new Set<number>();
+  for (const s of data?.scenarios ?? []) {
+    const m = /^S(\d+)$/i.exec(s.id.trim());
+    if (m) set.add(Number(m[1]));
+  }
+  const dir = join(root, 'logos', 'resources', 'prd', '3-technical-plan', '2-scenario-implementation');
+  if (existsSync(dir)) {
+    for (const name of readdirSync(dir)) {
+      const m = /-S(\d+)-[^/\\]+\.md$/i.exec(name);
+      if (m) set.add(Number(m[1]));
+    }
+  }
+  return set;
+}
+
+/**
  * 派生取号（S45 / D17）：`next = max(configured ?? 0, max已落盘 + 1)`，与 DXX 分配公式同型。
  * 已落盘集合来源：scenarios[] / features[]（yaml 单一真相）与 `logos/resources/decisions/` 文件名
- * （`<module>-DXX-<slug>.md`）。yaml 缺失 / 目录缺失按空集处理，不报错。
+ * （`<module>-DXX-<slug>.md`）。场景侧经 `landedScenarioNumbers` 并入场景文档目录扫描（文件系统
+ * 唯一事实源）。yaml 缺失 / 目录缺失按空集处理，不报错。
  */
 export function deriveNextIds(root: string, data: ProjectYamlData | null | undefined): DerivedNextIds {
   const configuredScenario = data?.scenario_counter?.next_id ?? 0;
   const configuredFeature = data?.feature_counter?.next_id ?? 0;
   const configuredDecision = data?.decision_counter?.next_id ?? 0;
 
-  const landedScenarios = (data?.scenarios ?? [])
-    .map(s => idNumber(s.id, 'S'))
-    .filter((n): n is number => n !== null);
+  const landedScenarios = [...landedScenarioNumbers(root, data)];
   const landedFeatures = (data?.features ?? [])
     .map(f => idNumber(f.id, 'F'))
     .filter((n): n is number => n !== null);

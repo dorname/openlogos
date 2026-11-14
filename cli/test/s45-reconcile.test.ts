@@ -169,4 +169,27 @@ describe('S45 切片3：收敛重排器', () => {
     expect(r.exitCode).toBe(0);
     expect(readFileSync(join(root, 'logos/logos-project.yaml'), 'utf-8')).toContain('pay-S45-b.md');
   }, TIMEOUT);
+
+  it('ST-S45-04: 重排后派生取号端到端（YAML 落后于磁盘 → status next_scenario_id=46）', () => {
+    const { root } = collisionFixture();
+    scaffoldProject(root, { locale: 'zh' });
+    const yamlPath = join(root, 'logos/logos-project.yaml');
+    // 复现 Issue #2 协作态：yaml scenarios[] 仅登记 S43，counter 落后值 45；磁盘已有 core-S44-a（origin 拉入）
+    writeFileSync(yamlPath, readFileSync(yamlPath, 'utf-8')
+      + '\nscenarios:\n  - id: S43\n    name: 协作基线场景\n\nscenario_counter:\n  next_id: 45\n');
+    put(root, `${SCENARIO_DIR}/pay-S44-b.md`, '# S44: 本地场景\n测试：UT-S44-01\n');
+
+    // 收敛重排：本地 pay-S44-b → pay-S45-b（磁盘最大号 45）
+    const r = runCli(root, ['sync']);
+    expect(r.exitCode, `sync stderr=${r.stderr}`).toBe(0);
+    expect(existsSync(join(root, `${SCENARIO_DIR}/pay-S45-b.md`))).toBe(true);
+
+    // 修复前此处输出 44（只读 yaml scenarios[]）；并集派生必须输出 46，且重复执行稳定、counter 不写回
+    const s1 = runCli(root, ['status', '--format', 'json']);
+    expect(s1.exitCode, `status stderr=${s1.stderr}`).toBe(0);
+    expect(JSON.parse(s1.stdout).data.next_scenario_id).toBe(46);
+    const s2 = runCli(root, ['status', '--format', 'json']);
+    expect(JSON.parse(s2.stdout).data.next_scenario_id).toBe(46);
+    expect(readFileSync(yamlPath, 'utf-8')).toMatch(/scenario_counter:\n  next_id: 45/);
+  }, TIMEOUT);
 });
