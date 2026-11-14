@@ -19,6 +19,7 @@
 | UT-S45-09 | merge preflight fetch 检查双分支 | origin 目标文档分别领先 / 一致 | 执行 preflight | 领先→稳定错误提示先 pull；一致→放行；fetch 失败→警告放行（与 UT-S09-468/469 同判据、双锚定） |
 | UT-S45-10 | 锚失效报错增强 | 锚 0 命中且 origin blob 异于本地 | 触发锚解析失败 | 报错含 origin 新版本与被改小节上下文（与 UT-S09-472 同判据、双锚定） |
 | UT-S45-11 | 重排幂等 | 已完成一次收敛 | 再次执行 sync 收敛 | 无可重排项；资源与 yaml 快照不变 |
+| UT-S45-12 | 派生并集判据：YAML scenarios[] ∪ 场景文档目录 | yaml `scenarios[]` 只登记 S43；场景文档目录已存在 `core-S44-alice.md` 与 `pay-S45-bob.md`；另构造 yaml 领先分支（counter `next_id: 50` 且磁盘仅 S43） | 调用 `deriveNextIds` / `openlogos status --format json` | 落后分支输出 `next_scenario_id: 46`（磁盘最大 45 + 1，YAML 落后不拖低取值）；领先分支仍取 `50`（configured 下限语义不变）；两种分支 yaml counter 行均不被写回（与 UT-S45-01/06 同判据族） |
 
 #### 二、场景测试（ST）
 
@@ -27,13 +28,16 @@
 | ST-S45-01 | 双 clone 撞号端到端 | S45 Step 1→5 | cloneA/cloneB 同源 bare 仓库；两边各起一个含新场景的提案 | ① A：merge→push；② B：merge（同基线定稿同号）；③ B：`openlogos sync`（按提示 pull --rebase）→ 重排 → index 重建；④ B：push | ① A 落盘 `core-S44-a`；② B 本地落盘 `pay-S44-b`；③ 后 B 工件变 `pay-S45-b` 且输出 diff 清单、`core-S44-a` 不变；④ push 无冲突、无 counter 行冲突（yaml 无写回） |
 | ST-S45-02 | 同文档冲突恢复重放端到端 | S45 Step 6、EX-45.4 | A 与 B 的 delta 触达同一主文档同一节；A 先 push 且改了节标题；B 尚未 merge | ① B：pull（工作区干净）；② B：merge → 旧锚失效（含 origin 上下文与恢复指引）；③ B：基于新 view 重写 delta（新锚）再 merge | ② 稳定错误指引重写；③ 落盘成功且基于新 view；全程未手工缝合冲突标记。**已 merge 提案的主文档漂移由 MERGE_AMEND_DRIFT 接管（EX-9.40），不在本用例路径** |
 | ST-S45-03 | 离线收敛端到端 | EX-45.3 | 无远端访问（bare 路径移除） | ① B：`openlogos sync` | 本地重排与 index 重建照常；fetch 相关仅警告；exit 0 |
+| ST-S45-04 | 重排后派生取号端到端 | S45 Step 3→5（fix-derived-scenario-id） | 承接 ST-S45-01 后态：Bob 侧磁盘已有 `core-S43-baseline`、`core-S44-alice`、`pay-S45-bob` 三个场景文档，yaml `scenarios[]` 仅登记 S43 | ① B：`openlogos status --format json` 读取 `next_scenario_id`；② B：重复执行一次 | ① 输出 `next_scenario_id: 46`（修复前错误输出 44——Issue #2 实证）；② 重复执行取值稳定；全程 yaml counter 行不写回 |
 
 #### 三、测试数据与断言要求
 
 - 「origin 可见 = 冻结」断言：重排前后对比 bare 侧对象字节（通过 `git cat-file`），必须逐字节相等；
 - 重排断言覆盖注册文法全族：文件名、`# SXX` 标题、`UT-*`、`ST-*`、`SMOKE-*`、`DXX`、`FXX`；
-- counter 断言同时验证「不写回」与「兼容读取作下限」两个方向（UT-S45-01 × UT-S45-06）。
+- counter 断言同时验证「不写回」与「兼容读取作下限」两个方向（UT-S45-01 × UT-S45-06）；
+- 派生并集断言（UT-S45-12 / ST-S45-04）必须构造「YAML `scenarios[]` 落后于磁盘场景文档」的夹具——两侧一致的单机态无法暴露数据源分叉；断言取值时须同时确认 counter 行未被写回。
 
 #### 四、覆盖度校验
 
-- EX-45.1→UT-S45-05；EX-45.2→文档化惯例（防御报告路径，不设自动改写用例）；EX-45.3→UT/ST-S45-03；EX-45.4→UT-S45-10/ST-S45-02；EX-45.5→文档化惯例；EX-45.6→UT-S45-01/06；S45-AC-01→UT-S45-02、AC-02→UT-S45-03/04、AC-03→UT-S45-05、AC-04→UT-S45-01/06/07、AC-05→ST-S45-02、AC-06→UT-S45-09、AC-07→UT-S40-30~33/ST-S40-16。
+- EX-45.1→UT-S45-05；EX-45.2→文档化惯例（防御报告路径，不设自动改写用例）；EX-45.3→UT/ST-S45-03；EX-45.4→UT-S45-10/ST-S45-02；EX-45.5→文档化惯例；EX-45.6→UT-S45-01/06；S45-AC-01→UT-S45-02、AC-02→UT-S45-03/04、AC-03→UT-S45-05、AC-04→UT-S45-01/06/07/12、AC-05→ST-S45-02、AC-06→UT-S45-09、AC-07→UT-S40-30~33/ST-S40-16。
+- 派生数据源单源化（fix-derived-scenario-id）→UT-S45-12、ST-S45-04。
