@@ -1,6 +1,6 @@
 {
   "name": "@dorname/openlogos",
-  "version": "0.17.1",
+  "version": "0.17.2",
   "description": "CLI tool for the OpenLogos software engineering methodology",
   "type": "module",
   "bin": {

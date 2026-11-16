@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.2] - 2026-11-16
+
+**包身份切换**：本 fork（个人定制版）自本版起使用独立 npm 包名 **`@dorname/openlogos`**，与官方 `@miniidealab/openlogos` 彻底区分；CLI 命令名保持 `openlogos` 不变。本版内容 = 0.17.1 的两项协作缺陷修复 + 协作流程图文档 + 身份切换本身，并首次发布到 npm。
+
+### 从官方包迁移
+
+```bash
+npm uninstall -g @miniidealab/openlogos   # 卸载官方名安装（如有）
+npm install -g @dorname/openlogos@0.17.2  # 安装 fork 独立包
+openlogos --version                        # 0.17.2
+```
+
+离线安装可用 GitHub Release `v0.17.2` 的 `dorname-openlogos-0.17.2.tgz`：`npm install -g ./dorname-openlogos-0.17.2.tgz`。
+
+### 变更
+
+- **包身份**：`package.json` name/repository 切换为 `@dorname/openlogos` / `dorname/openlogos`；全部活身份载体（lockfile、发布检查、本地部署脚本、安装路径断言、安装指引）同步；历史记录中的官方包名按事实保留。
+- 含 0.17.1 全部内容：双 worktree merge-back 冲突修复（sync stamp 固定忽略）、`next_scenario_id` 并集派生修复、v0.17.0 版本载体补齐、S44/S45 协作系统处理流程图与时序图。
+
 ## [0.17.1] - 2026-11-16
 
 多人与多会话协作的两项缺陷修复（均来自真机双 clone / 双 worktree 回归实证），外加协作场景设计文档的流程图与时序图补全。从 0.17.0 升级只需 `npm install -g @miniidealab/openlogos@0.17.1`；已在 0.17.0 上初始化的项目无需任何迁移动作。
