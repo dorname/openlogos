@@ -10,7 +10,7 @@ Generate the merge prompt for a change proposal: "$ARGUMENTS"
 2. Run `openlogos merge $ARGUMENTS` in the project root directory.
 3. If the `openlogos` CLI is not found, tell the user to install it:
    ```
-   npm install -g @miniidealab/openlogos
+   npm install -g @dorname/openlogos
    ```
 4. After the merge prompt is generated, inform the user:
    - A `MERGE_PROMPT.md` file has been created in `logos/changes/$ARGUMENTS/`

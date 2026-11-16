@@ -6,7 +6,7 @@ tech_stack:
   language: TypeScript
   runtime: Node.js >=18
   cli:
-    package: "@miniidealab/openlogos"
+    package: "@dorname/openlogos"
     module_format: ESM
     testing: Vitest
     key_dependency: yaml ^2.8.3

@@ -42,7 +42,7 @@ openlogos/
 
 ## 构建与发布边界
 
-1. 插件模板随 `@miniidealab/openlogos`（CLI 单包）一起发布，不单独发布插件 npm 包。
+1. 插件模板随 `@dorname/openlogos`（CLI 单包）一起发布，不单独发布插件 npm 包。
 2. 插件只负责“命令路由 + hook 注入 + 结果格式化”，不复制 CLI 业务逻辑。
 3. 版本策略：
    - 插件模板版本与 CLI 版本保持同步
@@ -147,7 +147,7 @@ MVP 至少覆盖以下事件：
 
 ## 发布建议
 
-1. 仅发布 `@miniidealab/openlogos`，不拆独立 OpenCode 插件包。
+1. 仅发布 `@dorname/openlogos`，不拆独立 OpenCode 插件包。
 2. `openlogos init --ai-tool opencode` 与 `openlogos sync` 自动部署插件模板到 `.opencode/plugins/`。
 3. 对外文档明确：原生插件为推荐路径，`AGENTS.md` 为兼容路径（降级兜底）。
 

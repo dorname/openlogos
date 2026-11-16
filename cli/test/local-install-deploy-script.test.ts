@@ -33,7 +33,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '../..');
 const CLI = resolve(HERE, '../dist/index.js');
 const SCRIPT_REL = 'scripts/deploy-local.mjs';
-const PKG = '@miniidealab/openlogos';
+const PKG = '@dorname/openlogos';
 const RUNTIME_REL = 'logos/.openlogos-runtime/local-install';
 const VERSION_A = '9.0.0';
 const VERSION_B = '9.1.0';
@@ -54,7 +54,7 @@ const faults = JSON.parse(process.env.FAKE_NPM_FAULTS || '{}');
 const globalPrefix = process.env.FAKE_GLOBAL_PREFIX;
 const opt = flag => { const i = args.indexOf(flag); return i >= 0 ? args[i + 1] : null; };
 const die = msg => { process.stderr.write(msg + '\n'); process.exit(1); };
-const pkgPath = prefix => path.join(prefix, 'lib', 'node_modules', '@miniidealab', 'openlogos');
+const pkgPath = prefix => path.join(prefix, 'lib', 'node_modules', '@dorname', 'openlogos');
 
 function tar(entries) {
   const blocks = [];
@@ -180,7 +180,7 @@ function installFake(prefix: string, version: string, marker: string): void {
   writeFileSync(join(dir, 'dist/index.js'), entrySource(version, marker));
   chmodSync(join(dir, 'dist/index.js'), 0o755);
   mkdirSync(join(prefix, 'bin'), { recursive: true });
-  spawnSync('ln', ['-sf', '../lib/node_modules/@miniidealab/openlogos/dist/index.js', join(prefix, 'bin/openlogos')]);
+  spawnSync('ln', ['-sf', '../lib/node_modules/@dorname/openlogos/dist/index.js', join(prefix, 'bin/openlogos')]);
 }
 
 /** 写 cli/ 夹具包并提交；返回提交 sha。 */

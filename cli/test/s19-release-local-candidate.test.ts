@@ -70,7 +70,7 @@ describe('S19 — OpenLogos 本地发布候选', () => {
     const install = spawnSync('npm', ['install', '--prefix', prefix, '--force', '--ignore-scripts',
       '--no-audit', '--no-fund', tarball], { encoding: 'utf8', timeout: 300_000 });
     expect(install.status, install.stderr).toBe(0);
-    const entry = join(prefix, 'node_modules/@miniidealab/openlogos/dist/index.js');
+    const entry = join(prefix, 'node_modules/@dorname/openlogos/dist/index.js');
     expect(existsSync(entry)).toBe(true);
 
     const run = (args: string[], cwd: string) =>

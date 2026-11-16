@@ -24,7 +24,7 @@ Replace `<LOCALE>` with `en` or `zh` based on the user's answer. If `$ARGUMENTS`
 
 If `openlogos` command is not found, tell the user:
 ```
-npm install -g @miniidealab/openlogos
+npm install -g @dorname/openlogos
 ```
 
 After init completes, suggest running `/openlogos:next` for guidance.

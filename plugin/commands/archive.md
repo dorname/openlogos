@@ -15,7 +15,7 @@ Archive the completed change proposal: "$ARGUMENTS"
 3. Run `openlogos archive $ARGUMENTS` in the project root directory.
 4. If the `openlogos` CLI is not found, tell the user to install it:
    ```
-   npm install -g @miniidealab/openlogos
+   npm install -g @dorname/openlogos
    ```
 5. After archiving, inform the user that the change proposal has been moved to `logos/changes/archive/` and is now complete.
 

@@ -10,7 +10,7 @@
 import { accessSync, constants, existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
 import { isAbsolute, join, relative } from 'node:path';
 
-const PKG_SCOPE = '@miniidealab';
+const PKG_SCOPE = '@dorname';
 const PKG_NAME = 'openlogos';
 
 const within = (dir, path) => {

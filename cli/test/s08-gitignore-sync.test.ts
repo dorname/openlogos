@@ -256,7 +256,7 @@ describe('S08 sync 重渲染 .gitignore 托管区块', () => {
       encoding: 'utf-8', env: testEnv(), timeout: 300_000,
     });
     expect(install.status, install.stderr).toBe(0);
-    const pkgRoot = join(prefix, 'node_modules', '@miniidealab', 'openlogos');
+    const pkgRoot = join(prefix, 'node_modules', '@dorname', 'openlogos');
     const entry = join(pkgRoot, 'dist', 'index.js');
     expect(existsSync(entry)).toBe(true);
     // 记录候选身份：tarball SHA-256 与 CLI 入口类别（安装态 prefix 入口，非仓库 dist）

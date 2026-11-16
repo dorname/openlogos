@@ -1,5 +1,5 @@
 {
-  "name": "@miniidealab/openlogos",
+  "name": "@dorname/openlogos",
   "version": "0.17.1",
   "description": "CLI tool for the OpenLogos software engineering methodology",
   "type": "module",
@@ -35,11 +35,11 @@
   },
   "homepage": "https://openlogos.ai",
   "bugs": {
-    "url": "https://github.com/miniidealab/openlogos/issues"
+    "url": "https://github.com/dorname/openlogos/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/miniidealab/openlogos.git",
+    "url": "git+https://github.com/dorname/openlogos.git",
     "directory": "cli"
   },
   "engines": {

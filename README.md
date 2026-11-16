@@ -92,7 +92,7 @@ openlogos watch                    # 流式查看实时派生状态
 需要 `Node.js >= 18`。
 
 ```bash
-npm install -g @miniidealab/openlogos
+npm install -g @dorname/openlogos
 openlogos --version
 ```
 
@@ -152,7 +152,7 @@ OpenLogos 当前已支持：
 
 通用建议：
 
-- 先安装并确认 `openlogos` CLI：`npm install -g @miniidealab/openlogos`
+- 先安装并确认 `openlogos` CLI：`npm install -g @dorname/openlogos`
 - 再安装对应 AI 工具本体，并确认命令可在当前终端环境中执行
 - 在项目根执行 `openlogos init` 或 `openlogos sync`
 - 最后完全退出并重新打开 AI 工具

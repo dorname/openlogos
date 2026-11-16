@@ -22,7 +22,7 @@ import { tmpdir } from 'node:os';
 import { delimiter, dirname, isAbsolute, join, relative } from 'node:path';
 import { gunzipSync } from 'node:zlib';
 
-const PACKAGE_NAME = '@miniidealab/openlogos';
+const PACKAGE_NAME = '@dorname/openlogos';
 const BIN_NAME = 'openlogos';
 const ENTRY_REL = 'dist/index.js';
 const RUNTIME_REL = 'logos/.openlogos-runtime/local-install';

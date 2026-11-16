@@ -2,10 +2,10 @@
 
 本文说明在 **OpenCode** 终端 AI 编码工具中，如何配合 **OpenLogos** CLI、本地插件与 **TUI 斜杠命令**完成方法论驱动的研发。
 
-**推荐 CLI 版本：** `@miniidealab/openlogos` **≥ 0.5.6**。该版本起，npm 包内包含完整的 `opencode-plugin-template`（含 `openlogos.js` 与 **`commands/*.md`**）。低于 0.5.6 的全局安装可能缺少模板目录，导致 `.opencode/plugins/` 或 `.opencode/commands/` 无法自动生成。
+**推荐 CLI 版本：** `@dorname/openlogos` **≥ 0.5.6**。该版本起，npm 包内包含完整的 `opencode-plugin-template`（含 `openlogos.js` 与 **`commands/*.md`**）。低于 0.5.6 的全局安装可能缺少模板目录，导致 `.opencode/plugins/` 或 `.opencode/commands/` 无法自动生成。
 
 ```bash
-npm install -g @miniidealab/openlogos@latest
+npm install -g @dorname/openlogos@latest
 openlogos --version   # 确认 ≥ 0.5.6
 ```
 
@@ -26,7 +26,7 @@ openlogos --version   # 确认 ≥ 0.5.6
 | 项 | 说明 |
 |----|------|
 | Node.js | ≥ 18 |
-| OpenLogos CLI | 全局安装：`npm install -g @miniidealab/openlogos` |
+| OpenLogos CLI | 全局安装：`npm install -g @dorname/openlogos` |
 | OpenCode | 终端可执行 `opencode`；若提示找不到命令，执行 `source ~/.zshrc` 或新开终端 |
 | 工作目录 | 始终在**项目根**启动 OpenCode（该目录下存在 `logos/logos.config.json`） |
 
@@ -173,7 +173,7 @@ OpenCode 里输入 **`/`** 后的列表来自：
 A：在含 `logos/logos.config.json` 的目录启动 OpenCode；子目录中请先 `cd` 到项目根再执行 CLI。
 
 **Q：`openlogos` 在斜杠命令里执行失败？**  
-A：执行 `which openlogos`；必要时 `npm install -g @miniidealab/openlogos@latest`。在**同一环境**下启动 OpenCode。
+A：执行 `which openlogos`；必要时 `npm install -g @dorname/openlogos@latest`。在**同一环境**下启动 OpenCode。
 
 **Q：`/openlogos` 显示 No matching items？**  
 A：请使用 **`/openlogos-status`** 等连字符命令，或 `/` / `ctrl+p` 后搜索 **`openlogos`**。

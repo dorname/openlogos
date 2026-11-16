@@ -42,7 +42,7 @@ const PLACEHOLDER = /<[A-Z_]+>/;
 /** envelope 头部序列：`"command":"<cmd>","version":"<值>"`——顶层包版本承载位的结构识别。 */
 const ENVELOPE_VERSION = new RegExp(String.raw`"command":"[a-z-]+","version":"([^"]*)"`, 'g');
 /** 文本快照 / 文本输出里的 `--version` 行形态：整行只有一个可执行名与版本。 */
-const VERSION_LINE = new RegExp(String.raw`^\s*(?:openlogos|@miniidealab/openlogos)\s+v?(${SEMVER})\s*$`);
+const VERSION_LINE = new RegExp(String.raw`^\s*(?:openlogos|@miniidealab/openlogos|@dorname/openlogos)\s+v?(${SEMVER})\s*$`);
 /** tarball / 安装包版本承载位：包名-版本.tgz。 */
 const TARBALL_VERSION = new RegExp(String.raw`openlogos-(${SEMVER})\.tgz`, 'g');
 /** 契约版本位：`"contract":{"version":"…"}`（JSON 快照）。 */

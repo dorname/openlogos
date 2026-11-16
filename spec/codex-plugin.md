@@ -98,7 +98,7 @@ Codex 中 `openlogos` 是 OpenLogos 官方方法论命名空间。该命名空�
 
 ## 构建与发布边界
 
-1. 插件模板随 `@miniidealab/openlogos`（CLI 单包）一起发布，不单独发布 Codex 插件包。
+1. 插件模板随 `@dorname/openlogos`（CLI 单包）一起发布，不单独发布 Codex 插件包。
 2. 插件只负责"Hook 注入 + 上下文注入"，不复制 CLI 业务逻辑。
 3. 版本策略：
    - 插件模板版本与 CLI 版本保持同步

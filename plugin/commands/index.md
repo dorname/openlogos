@@ -7,7 +7,7 @@ Generate a structured prompt that lets AI read actual file contents and write hi
 1. Run `openlogos index` in the project root directory.
 2. If the `openlogos` CLI is not found, tell the user to install it:
    ```
-   npm install -g @miniidealab/openlogos
+   npm install -g @dorname/openlogos
    ```
 3. After the command completes, `logos/index-prompt.md` will be generated.
 4. Tell the user: "Read `logos/index-prompt.md` and execute the instructions" — the AI will read each file's content and directly update `logos/logos-project.yaml`'s `resource_index` field.

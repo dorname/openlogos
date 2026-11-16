@@ -1,6 +1,6 @@
 # OpenLogos CLI
 
-[`@miniidealab/openlogos`](https://www.npmjs.com/package/@miniidealab/openlogos) 是 **OpenLogos** 方法论的官方命令行工具：在项目中初始化 `logos/` 目录、部署 AI Skills 与规范、执行阶段检测与测试验收（`verify`）等。
+[`@dorname/openlogos`](https://www.npmjs.com/package/@dorname/openlogos) 是 **OpenLogos** 方法论的官方命令行工具：在项目中初始化 `logos/` 目录、部署 AI Skills 与规范、执行阶段检测与测试验收（`verify`）等。
 
 - **官网**：[openlogos.ai](https://openlogos.ai)  
 - **源码与完整文档**：[github.com/miniidealab/openlogos](https://github.com/miniidealab/openlogos)（monorepo，本包位于 `cli/` 目录）  
@@ -13,7 +13,7 @@
 需要 **Node.js ≥ 18**。
 
 ```bash
-npm install -g @miniidealab/openlogos
+npm install -g @dorname/openlogos
 openlogos --version
 ```
 

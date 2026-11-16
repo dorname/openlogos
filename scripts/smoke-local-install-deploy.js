@@ -35,7 +35,7 @@ import { recordSmokeNotApplicable, smokeResultPath } from './lib/smoke-not-appli
 const IDS = ['SMOKE-core-268', 'SMOKE-core-269', 'SMOKE-core-270', 'SMOKE-core-271'];
 const TARGET_ENV = 'test';
 const ENVIRONMENT = 'test-local-global';
-const PACKAGE_NAME = '@miniidealab/openlogos';
+const PACKAGE_NAME = '@dorname/openlogos';
 const SCRIPT_REL = 'scripts/deploy-local.mjs';
 const ENTRY_REL = 'dist/index.js';
 const DEPLOY_LEDGER_REL = 'logos/.openlogos-runtime/deployments.jsonl';

@@ -25,7 +25,7 @@ function tempPrefix(): string {
 const V = '9.9.9';
 const SCRIPT = `#!/usr/bin/env node\nconsole.log('${V}');\n`;
 
-/** Unix 布局：<prefix>/lib/node_modules/@miniidealab/openlogos/dist/index.js + <prefix>/bin/openlogos 链接。 */
+/** Unix 布局：<prefix>/lib/node_modules/@dorname/openlogos/dist/index.js + <prefix>/bin/openlogos 链接。 */
 function unixPrefix(opts: { executable?: boolean; linkTarget?: string } = {}) {
   const prefix = tempPrefix();
   const layout = installedLayout(prefix, 'linux');
@@ -38,8 +38,8 @@ function unixPrefix(opts: { executable?: boolean; linkTarget?: string } = {}) {
   return layout;
 }
 
-/** Windows 布局：<prefix>/node_modules/@miniidealab/openlogos + npm 生成形态的 <prefix>/openlogos.cmd shim。 */
-function winPrefix(target = 'node_modules\\@miniidealab\\openlogos\\dist\\index.js') {
+/** Windows 布局：<prefix>/node_modules/@dorname/openlogos + npm 生成形态的 <prefix>/openlogos.cmd shim。 */
+function winPrefix(target = 'node_modules\\@dorname\\openlogos\\dist\\index.js') {
   const prefix = tempPrefix();
   const layout = installedLayout(prefix, 'win32');
   mkdirSync(join(layout.pkgDir, 'dist'), { recursive: true });

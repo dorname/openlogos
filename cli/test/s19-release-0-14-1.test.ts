@@ -274,7 +274,7 @@ describe('S19 — OpenLogos 本地全局 candidate', () => {
   });
 
   it('UT-S19-23: 旧/混合证据和公开发布动作 fail-closed，回滚只使用固定 previous tarball', () => {
-    const packageRoot = '/opt/openlogos/lib/node_modules/@miniidealab/openlogos';
+    const packageRoot = '/opt/openlogos/lib/node_modules/@dorname/openlogos';
     const valid: LocalReleaseCandidateIdentity = {
       schema: LOCAL_RELEASE_CANDIDATE_SCHEMA,
       package_name: LOCAL_RELEASE_PACKAGE_NAME,
@@ -328,7 +328,7 @@ describe('S19 — OpenLogos 本地全局 candidate', () => {
     const install = (tarball: string) => checked(npmCommand, [
       'install', '--prefix', prefix, '--force', '--ignore-scripts', '--no-audit', '--no-fund', tarball,
     ]);
-    const packageRoot = join(prefix, 'node_modules/@miniidealab/openlogos');
+    const packageRoot = join(prefix, 'node_modules/@dorname/openlogos');
     const entry = join(packageRoot, 'dist/index.js');
 
     install(candidate.tarball);

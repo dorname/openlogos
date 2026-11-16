@@ -33,7 +33,7 @@ OpenCode 的 `/` 列表来自 `.opencode/commands/*.md`，**不是**插件里的
 ## 分发策略（单包）
 
 - 不单独发布 OpenCode 插件 npm 包
-- 插件模板由 `@miniidealab/openlogos` 一并发布
+- 插件模板由 `@dorname/openlogos` 一并发布
 - 用户执行 `openlogos init --ai-tool opencode` 或 `openlogos sync` 时自动部署到：
   - `.opencode/plugins/openlogos.js`
   - `.opencode/commands/*.md`（TUI 斜杠命令）

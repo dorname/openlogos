@@ -7,7 +7,7 @@ Verify test results against test case specs and generate an acceptance report.
 1. Run `openlogos verify` in the project root directory.
 2. If the `openlogos` CLI is not found, tell the user to install it:
    ```
-   npm install -g @miniidealab/openlogos
+   npm install -g @dorname/openlogos
    ```
 3. The verify command reads `logos/resources/verify/test-results.jsonl` and matches results against test case specs in `logos/resources/test/`.
 4. It generates a three-layer acceptance report:
