@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.1] - 2026-11-16
+
+多人与多会话协作的两项缺陷修复（均来自真机双 clone / 双 worktree 回归实证），外加协作场景设计文档的流程图与时序图补全。从 0.17.0 升级只需 `npm install -g @miniidealab/openlogos@0.17.1`；已在 0.17.0 上初始化的项目无需任何迁移动作。
+
+### 修复
+
+- **双 worktree 提交后 merge-back 冲突（S44 / fork Issue #1）**：基线尚无 `logos/.openlogos-sync.json` 时，两个 worktree 各自首次 sync 会生成不同 `syncedAt` 并随提案提交，主工作区连续 merge-back 第二个分支必然 add/add 冲突。修复将该文件明确为本机同步证据并纳入 `.gitignore` 托管区块第四条固定条目（幂等渲染、`ignore remove` 越权保护）；历史项目已跟踪该文件时 `openlogos sync` 只输出 untrack 指引、不自动改写索引，各工作目录的资产新鲜度诊断语义不变。新增 ST-S44-03（双 worktree 提交后连续 merge-back）等 6 个回归用例。
+- **`next_scenario_id` 未按已落盘场景文件派生（S45 / fork Issue #2）**：双 clone 撞号收敛重排后磁盘已有 S44/S45 场景文档，但 `openlogos status --format json` 仍输出 44（应为 46）——`deriveNextIds` 此前只读 YAML `scenarios[]`。修复把 `landedScenarioNumbers`（YAML `scenarios[]` ∪ 场景文档目录文件名）下沉为 `project-yaml.ts` 单一导出，merge 落盘定稿与 status/next 派生共享同一「已落盘场景集合」判据。新增 UT-S45-12、ST-S45-04 回归用例。
+- **v0.17.0 版本身份载体同步**：发布提交漏升的 `cli/package-lock.json`（两处）与 `plugin-qoder` / `plugin-workbuddy` / `plugin-zcode` 插件模板 `plugin.json` 补齐至与主版本一致（此前导致 UT-S19-46/50/22/45、UT-S01-121 五个版本一致性 tripwire 失败）。
+
+### 文档
+
+- S44 / S45 场景设计文档各新增「系统处理流程图」（含 EX 异常出口决策分支）并扩充时序图（双会话并行与连续 merge-back 汇合、同文档冲突恢复重放），图示锚定本版修复后的真实行为。
+
 ## [0.17.0] - 2026-11-12
 
 **多人与多会话协作（multi-user-collaboration，F09）**——OpenLogos 现在支持「多人各自 clone 并行开发」与「单人多 AI 会话并行推进提案」。并行不需要中央服务，汇合冲突由本地机制自动消解；guard 单锁与全部既有门禁（merge F2、verify、smoke、archive、PreToolUse）语义零改动。
