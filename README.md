@@ -2,6 +2,13 @@
 
 [English](./README.en.md)
 
+> [!IMPORTANT]
+> **本仓库是 openlogos 的个人开发版（personal fork），不是官方仓库。**
+>
+> 基于开源项目 [miniidealab/openlogos](https://github.com/miniidealab/openlogos)（Apache-2.0）改造，**增加了团队协作特性**：单人多分支并行会话、多人跨 clone 汇合、编号冲突自动消解。
+> npm 包名 [`@dorname/openlogos`](https://www.npmjs.com/package/@dorname/openlogos)（官方包为 [`@miniidealab/openlogos`](https://www.npmjs.com/package/@miniidealab/openlogos)），两者互不替代。
+> 协作能力详解见 [团队协作](#团队协作) 章节与 [cli/README.md](./cli/README.md)。
+
 <p align="center">
   <img src="./logos/resources/reference/openlogos-index.png" alt="OpenLogos 首页展示图" width="1200" />
 </p>
@@ -191,6 +198,83 @@ OpenLogos 当前已支持：
 
 注意：以上命令应在项目根目录执行，也就是 `logos/logos.config.json` 所在目录。
 
+## 团队协作
+
+> 本 fork 的核心增量。两种形态：**单人多分支**（同一仓库开多个 AI 会话）与**多人跨 clone**（多个人并行开发同一仓库）。
+> 完整图文版见 [cli/README.md](./cli/README.md#团队协作单人多分支同一仓库多个-ai-会话)。
+
+### 相对官方 openlogos 多了什么
+
+| 能力 | 说明 |
+|---|---|
+| **单人多分支并行** | `openlogos change <slug> --worktree` 一条龙创建独立工作区 + 短期分支，多个 AI 会话互不干扰地推进多个提案 |
+| **多人跨 clone 汇合** | 两人从同一基线各自提案必然撞号——本包在落盘时自动定稿、push 前自动重排到空号 |
+| **编号冲突自动消解** | 计数器改为派生（不再写回 yaml），撞号由机制消解而非人工协调 |
+| **本地状态隔离** | guard 锁、运行时目录、worktree 会话目录、同步戳一律不入库，从根上消除多人互写 |
+
+### 单人多分支（同一仓库，多个 AI 会话）
+
+同一目录的第二个会话会被工作目录锁拒绝（刻意保留的正确行为）。要用并行，就给每个会话开一个独立 git worktree：
+
+```bash
+# 会话 A
+openlogos change feat-login --worktree
+# → 分支 openlogos/feat-login，工作区 .worktrees/feat-login
+# → 提示："请从 .worktrees/feat-login 启动新会话"
+
+# 会话 B
+openlogos change feat-search --worktree
+```
+
+然后在各自目录里启动 AI 会话，走**完全一致**的单提案全流程：
+
+```
+cd .worktrees/feat-login     # 会话 A 的 AI 在这里工作
+openlogos status             # 确认 active_change = feat-login
+# ... plan → delta → merge → slice → code → verify ...
+```
+
+各自 verify 通过后，依次合回主分支并清理：
+
+```bash
+# 主工作区
+git merge --no-ff openlogos/feat-login
+git merge --no-ff openlogos/feat-search
+openlogos sync                                  # 编号收敛 + index 重建
+git worktree remove .worktrees/feat-login
+git worktree remove .worktrees/feat-search
+git branch -D openlogos/feat-login
+git branch -D openlogos/feat-search
+openlogos archive feat-login
+openlogos archive feat-search
+```
+
+### 多人跨 clone（多个人，同一仓库）
+
+各自 clone 后正常推进；**push 前必须先收敛**，否则同基线的两人会拿到同一个场景号：
+
+```bash
+# 你的分支
+openlogos merge my-feature      # 编号自动定稿（被占则改写到下一个空号）
+git pull --rebase               # 先同步远端
+openlogos sync                  # 收敛：重排本人未推送工件 + 重建索引
+git push
+```
+
+`openlogos sync` 的收敛规则：**别人已推送的编号冻结不改写**，**你自己未推送的工件自动重排到空号**（文件名、标题、`UT-SXX-*` 引用同步改写）。
+
+### 冲突怎么处理
+
+| 冲突 | 谁处理 | 行为 |
+|---|---|---|
+| 场景编号撞号 | 🤖 自动 | 落盘定稿 + push 前自动重排 |
+| 计数器行冲突 | 🤖 自动 | 计数器已派生，不再写回 yaml |
+| `resource_index` 漂移 | 🤖 自动 | 收敛时整体重建 |
+| 本地状态互写 | 🤖 自动 | 固定忽略，永不入库 |
+| 文法外歧义引用 | 🧑 人工 | 整体不落盘，列出位置要求人工消除歧义 |
+| 双方都已推送同号 | 🧑 人工 | 只报告不改写（已推送编号冻结） |
+| 同一份主文档同一节被两人改 | 🧑 人工 | 阻塞并给出 origin 上下文；基于新 view 重写 delta 后重放 merge |
+
 ## 可运行示例
 
 仓库内提供了两个完整示例：
@@ -238,9 +322,10 @@ OpenLogos 会把方法论资产集中在 `logos/` 目录中，尽量减少对现
 
 ## 链接
 
+- 本 fork（个人开发版）：[github.com/dorname/openlogos](https://github.com/dorname/openlogos) ｜ npm：`@dorname/openlogos`
+- 上游官方项目：[github.com/miniidealab/openlogos](https://github.com/miniidealab/openlogos) ｜ npm：`@miniidealab/openlogos`
 - 官网：[openlogos.ai](https://openlogos.ai)
 - RunLogos 国际站：[runlogos.com](https://runlogos.com)
 - RunLogos 中国站：[runlogos.cn](https://runlogos.cn)
 - OpenCode 指南：[docs/opencode.md](./docs/opencode.md)
-- CLI 说明：[cli/README.md](./cli/README.md)
-- GitHub：[github.com/miniidealab/openlogos](https://github.com/miniidealab/openlogos)
+- CLI 说明（含团队协作完整指南）：[cli/README.md](./cli/README.md)

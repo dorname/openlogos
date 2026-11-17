@@ -2,6 +2,13 @@
 
 [中文](./README.md)
 
+> [!IMPORTANT]
+> **This repository is a personal fork of openlogos, not the official repository.**
+>
+> Built on top of [miniidealab/openlogos](https://github.com/miniidealab/openlogos) (Apache-2.0), with **team collaboration features added**: single-user multi-branch parallel sessions, multi-person cross-clone merging, and automatic numbering-conflict resolution.
+> Published as [`@dorname/openlogos`](https://www.npmjs.com/package/@dorname/openlogos) (the official package is [`@miniidealab/openlogos`](https://www.npmjs.com/package/@miniidealab/openlogos)); they are not interchangeable.
+> See the [Team Collaboration](#team-collaboration) section and [cli/README.md](./cli/README.md) for the full guide.
+
 <p align="center">
   <img src="./logos/resources/reference/openlogos-index.png" alt="OpenLogos homepage preview" width="1200" />
 </p>
@@ -191,6 +198,83 @@ If the agent or plugin panel still does not appear, check these first:
 
 Important: run these commands at the project root, where `logos/logos.config.json` exists.
 
+## Team Collaboration
+
+> The core addition of this fork. Two shapes: **single-user multi-branch** (multiple AI sessions in one repo) and **multi-person cross-clone** (several people developing the same repo in parallel).
+> The illustrated guide lives in [cli/README.md](./cli/README.md#团队协作单人多分支同一仓库多个-ai-会话).
+
+### What this fork adds over upstream openlogos
+
+| Capability | Description |
+|---|---|
+| **Single-user multi-branch parallelism** | `openlogos change <slug> --worktree` creates an isolated worktree + short-lived branch, so several AI sessions advance several proposals without interfering |
+| **Multi-person cross-clone merging** | Two people branching from the same base always pick the same number — this fork finalizes numbering on merge and renumbers to a free slot before push |
+| **Automatic numbering-conflict resolution** | Counters become derived (never written back to yaml), so collisions are resolved by mechanism, not coordination |
+| **Local-state isolation** | Guard lock, runtime dir, worktree session dir and sync stamp are never committed — eliminating cross-developer write conflicts at the root |
+
+### Single-user multi-branch (multiple AI sessions in one repo)
+
+A second session in the same directory is rejected by the working-directory lock (deliberately correct behavior). For parallel work, give each session its own git worktree:
+
+```bash
+# Session A
+openlogos change feat-login --worktree
+# → branch openlogos/feat-login, worktree .worktrees/feat-login
+# → "please start a new session from .worktrees/feat-login"
+
+# Session B
+openlogos change feat-search --worktree
+```
+
+Then start an AI session in each directory and run the **exact same** single-proposal flow:
+
+```
+cd .worktrees/feat-login     # session A's AI works here
+openlogos status             # confirms active_change = feat-login
+# ... plan → delta → merge → slice → code → verify ...
+```
+
+After each side passes verify, merge back and clean up:
+
+```bash
+# main worktree
+git merge --no-ff openlogos/feat-login
+git merge --no-ff openlogos/feat-search
+openlogos sync                                  # renumber convergence + index rebuild
+git worktree remove .worktrees/feat-login
+git worktree remove .worktrees/feat-search
+git branch -D openlogos/feat-login
+git branch -D openlogos/feat-search
+openlogos archive feat-login
+openlogos archive feat-search
+```
+
+### Multi-person cross-clone (several people, same repo)
+
+Everyone clones and proceeds normally — but **converge before pushing**, otherwise two people on the same base pick the same scenario number:
+
+```bash
+# on your branch
+openlogos merge my-feature      # numbering is finalized automatically (renumbered to the next free slot if taken)
+git pull --rebase               # sync with the remote first
+openlogos sync                  # converge: renumber your own unpushed artifacts + rebuild the index
+git push
+```
+
+Convergence rules: **numbers already pushed by others are frozen**; **your own unpushed artifacts are renumbered to a free slot** (file names, `# SXX` headings and `UT-SXX-*` references are rewritten accordingly).
+
+### How conflicts are handled
+
+| Conflict | Who | Behavior |
+|---|---|---|
+| Scenario numbering collision | 🤖 automatic | Finalized on merge + auto-renumbered before push |
+| Counter line conflict | 🤖 automatic | Counters are derived, never written back to yaml |
+| `resource_index` drift | 🤖 automatic | Rebuilt wholesale during convergence |
+| Local-state write conflicts | 🤖 automatic | Fixed-ignored, never committed |
+| Ambiguous references outside the registered grammar | 🧑 human | Nothing is written; positions are listed for you to disambiguate |
+| Both sides already pushed the same number | 🧑 human | Reported only, never rewritten (pushed numbers are frozen) |
+| Two people edited the same section of the same document | 🧑 human | Blocked with origin context; rewrite the delta against the new view and replay the merge |
+
 ## Runnable Examples
 
 The repository includes two complete examples:
@@ -238,9 +322,10 @@ OpenLogos keeps methodology assets inside `logos/`, so it stays minimally invasi
 
 ## Links
 
+- This fork (personal edition): [github.com/dorname/openlogos](https://github.com/dorname/openlogos) | npm: `@dorname/openlogos`
+- Upstream official project: [github.com/miniidealab/openlogos](https://github.com/miniidealab/openlogos) | npm: `@miniidealab/openlogos`
 - Website: [openlogos.ai](https://openlogos.ai)
 - RunLogos (Global): [runlogos.com](https://runlogos.com)
 - RunLogos (China): [runlogos.cn](https://runlogos.cn)
 - OpenCode guide: [docs/opencode.md](./docs/opencode.md)
-- CLI package guide: [cli/README.md](./cli/README.md)
-- GitHub: [github.com/miniidealab/openlogos](https://github.com/miniidealab/openlogos)
+- CLI package guide (with the full team-collaboration guide): [cli/README.md](./cli/README.md)
