@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.3] - 2026-11-17
+
+**README 重写**：npm 页面与仓库首页的 README 现在明确声明本包是**基于 openlogos 增加团队协作特性的个人开发版（非官方）**，并给出团队协作能力的完整使用说明。
+
+### README 改写内容
+
+- **身份声明**：`cli/README.md`（npm 页面主文档）与根 `README.md` / `README.en.md` 顶部均显著标注「个人开发版、非官方」，并给出与官方包 `@miniidealab/openlogos` 的对照表与选型建议（两包 bin 同名，建议二选一）。
+- **相对上游增量清单**：单人多分支并行、多人跨 clone 汇合、编号冲突自动消解、本地状态隔离、协作缺陷修复。
+- **团队协作完整指南**：
+  - *单人多分支*：`openlogos change <slug> --worktree` 开并行会话 → 各自目录起 AI 会话 → 单提案全流程 → 依次 merge-back → `openlogos sync` 收敛 → 清理分支与 worktree；含同目录第二会话被拒时的处置。
+  - *多人跨 clone*：各自 clone → `openlogos merge` 编号自动定稿 → **push 前 `git pull --rebase` + `openlogos sync` 收敛重排** → push；含同文档冲突的恢复重放步骤。
+  - 协作专用命令速查表与**冲突处置对照表**（哪些由机器自动消解、哪些必须人工判断）。
+- **命令准确性**：README 中引用的全部命令与参数均对照实现核实。
+
+> 说明：npm 不允许重发已发布过的版本号，故本 README 经 0.17.3 发布；0.17.2 已由维护者删除。
+
 ## [0.17.2] - 2026-11-16
 
 **包身份切换**：本 fork（个人定制版）自本版起使用独立 npm 包名 **`@dorname/openlogos`**，与官方 `@miniidealab/openlogos` 彻底区分；CLI 命令名保持 `openlogos` 不变。本版内容 = 0.17.1 的两项协作缺陷修复 + 协作流程图文档 + 身份切换本身，并首次发布到 npm。
